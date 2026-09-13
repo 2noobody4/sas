@@ -1,0 +1,247 @@
+import React, { useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import { MotionBox } from '../../components/ui/MotionBox';
+import { usePromotions, useCreatePromotion, useDeletePromotion, useTarifications } from '../../hooks/usePromotions';
+import { useProduits } from '../../hooks/useProduits';
+import { Search, Plus, Trash2, Tag, X } from 'lucide-react';
+import { useToast } from '../../hooks/useToast';
+
+export const PromotionsPage: React.FC = () => {
+  const history = useHistory();
+  const { data: promotions = [], isLoading, refetch } = usePromotions();
+  const { data: produits = [] } = useProduits();
+  const { data: tarifications = [] } = useTarifications();
+  const createMutation = useCreatePromotion();
+  const deleteMutation = useDeletePromotion();
+  const { success, error: toastError } = useToast();
+
+  const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // <-- État anti-double-clic
+  const [form, setForm] = useState({
+    produit_id: '',
+    tarification_id: '',
+    prix_promo: 0,
+    date_debut: new Date().toISOString().split('T')[0],
+    date_fin: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filtered = promotions.filter((p: any) => {
+    const nom = p.produit?.nom || '';
+    return nom.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Empêcher les doubles soumissions
+    if (isSubmitting) return;
+    
+    if (form.prix_promo <= 0) {
+      toastError('Le prix promotionnel doit être supérieur à 0');
+      return;
+    }
+    
+    setIsSubmitting(true); // Désactiver le bouton
+    
+    try {
+      const dataToSend = {
+        ...form,
+        tarification_id: form.tarification_id || undefined,
+      };
+      await createMutation.mutateAsync(dataToSend);
+      success('Promotion créée ✅');
+      setShowForm(false);
+      setForm({
+        produit_id: '',
+        tarification_id: '',
+        prix_promo: 0,
+        date_debut: new Date().toISOString().split('T')[0],
+        date_fin: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      });
+      refetch();
+    } catch (err: any) {
+      toastError(err.message);
+    } finally {
+      setIsSubmitting(false); // Réactiver le bouton
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Supprimer cette promotion ?')) {
+      await deleteMutation.mutateAsync(id);
+      refetch();
+    }
+  };
+
+  const getPrixVente = (produitId: string) => {
+    const tarif = tarifications.find((t: any) => t.produit_id === produitId && !t.date_fin);
+    return tarif?.prix_vente || 0;
+  };
+
+  if (isLoading) return <div className="p-6 text-center text-[var(--color-textSecondary)]">Chargement...</div>;
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-textPrimary)]">🏷️ Promotions</h1>
+          <p className="text-sm text-[var(--color-textSecondary)]">Gestion des offres promotionnelles</p>
+        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="px-4 py-2 rounded-xl bg-[var(--color-primary)] text-white flex items-center gap-2"
+        >
+          <Plus size={18} /> Nouvelle promotion
+        </button>
+      </div>
+
+      <div className="flex gap-3 mb-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
+          <input
+            type="text"
+            placeholder="Rechercher un produit en promotion..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+          />
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <MotionBox type="card" variant="default" className="p-8 text-center text-[var(--color-textSecondary)]">
+          Aucune promotion active.
+        </MotionBox>
+      ) : (
+        <MotionBox type="card" variant="elevated" className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead style={{ backgroundColor: 'var(--color-secondary)' }}>
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--color-textPrimary)]">Produit</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-[var(--color-textPrimary)]">Prix promo</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold hidden md:table-cell">Prix normal</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold hidden md:table-cell">Réduction</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold">Début</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold hidden lg:table-cell">Fin</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p: any) => {
+                  const prixVente = getPrixVente(p.produit_id);
+                  const reduction = prixVente > 0 ? Math.round(((prixVente - p.prix_promo) / prixVente) * 100) : 0;
+                  return (
+                    <tr key={p.id} className="border-t border-[var(--color-borderColor)] hover:bg-[var(--color-secondary)]/50 transition">
+                      <td className="px-4 py-3 font-medium text-[var(--color-textPrimary)]">{p.produit?.nom || 'Produit inconnu'}</td>
+                      <td className="px-4 py-3 text-right font-bold text-[var(--color-success)]">{p.prix_promo.toLocaleString()} FCFA</td>
+                      <td className="px-4 py-3 text-right text-[var(--color-textSecondary)] line-through hidden md:table-cell">{prixVente.toLocaleString()} FCFA</td>
+                      <td className="px-4 py-3 text-center hidden md:table-cell">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium text-white bg-[var(--color-danger)]">-{reduction}%</span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-[var(--color-textSecondary)]">{new Date(p.date_debut).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-center text-sm text-[var(--color-textSecondary)] hidden lg:table-cell">{new Date(p.date_fin).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-center">
+                        <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded hover:bg-red-50 text-[var(--color-danger)]">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </MotionBox>
+      )}
+
+      {showForm && (
+        <MotionBox as="div" className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
+          onClick={(e) => e.target === e.currentTarget && setShowForm(false)}
+          animation={{ animationInitiale: 'fadeIn' }}>
+          <MotionBox as="div" type="card" variant="xlarge" className="w-full max-w-md p-6 bg-[var(--color-cardBg)] rounded-2xl shadow-2xl"
+            animation={{ animationInitiale: 'slideUp' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-[var(--color-textPrimary)]">Nouvelle promotion</h3>
+              <button onClick={() => setShowForm(false)} className="text-[var(--color-textSecondary)]"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Produit *</label>
+                <select
+                  value={form.produit_id}
+                  onChange={(e) => setForm({ ...form, produit_id: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                >
+                  <option value="">Sélectionner</option>
+                  {produits.filter((p: any) => p.actif).map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.nom}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Prix promotionnel (FCFA) *</label>
+                <input
+                  type="number"
+                  value={form.prix_promo}
+                  onChange={(e) => setForm({ ...form, prix_promo: parseFloat(e.target.value) || 0 })}
+                  min={0}
+                  step={100}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Date début *</label>
+                  <input
+                    type="date"
+                    value={form.date_debut}
+                    onChange={(e) => setForm({ ...form, date_debut: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Date fin *</label>
+                  <input
+                    type="date"
+                    value={form.date_fin}
+                    onChange={(e) => setForm({ ...form, date_fin: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-borderColor)]">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
+                  disabled={isSubmitting}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`px-4 py-2 rounded-xl text-white flex items-center gap-1 ${
+                    isSubmitting
+                      ? 'bg-[var(--color-borderColor)] cursor-not-allowed opacity-60'
+                      : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]'
+                  }`}
+                >
+                  {isSubmitting ? 'En cours...' : <><Tag size={16} /> Créer</>}
+                </button>
+              </div>
+            </form>
+          </MotionBox>
+        </MotionBox>
+      )}
+    </div>
+  );
+};
+
+export default PromotionsPage;

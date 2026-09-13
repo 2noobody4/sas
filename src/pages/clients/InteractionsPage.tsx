@@ -1,0 +1,272 @@
+import React, { useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import { MotionBox } from '../../components/ui/MotionBox';
+import { useInteractions, useCreateInteraction } from '../../hooks/useClients';
+import { useClients } from '../../hooks/useClients';
+import { TypeInteraction } from '../../types/clients';
+import { Search, Plus, Filter, X, Phone, Mail, Calendar, RefreshCw, MessageSquare, User } from 'lucide-react';
+import { useToast } from '../../hooks/useToast';
+
+export const InteractionsPage: React.FC = () => {
+  const history = useHistory();
+  const { data: interactions = [], isLoading, refetch } = useInteractions();
+  const { data: clients = [] } = useClients();
+  const createMutation = useCreateInteraction();
+  const { success, error: toastError } = useToast();
+
+  const [showForm, setShowForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filtreType, setFiltreType] = useState('');
+  const [form, setForm] = useState({
+    client_id: '',
+    type: 'note' as TypeInteraction,
+    sujet: '',
+    description: '',
+    date_interaction: new Date().toISOString().split('T')[0],
+  });
+
+  const filtered = interactions.filter(i => {
+    const clientNom = i.client?.nom || '';
+    const matchSearch = clientNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        i.sujet?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchType = filtreType ? i.type === filtreType : true;
+    return matchSearch && matchType;
+  });
+
+  const getTypeIcon = (type: string) => {
+    const icons: Record<string, any> = {
+      appel: Phone,
+      email: Mail,
+      rendez_vous: Calendar,
+      relance: RefreshCw,
+      note: MessageSquare,
+      autre: X,
+    };
+    return icons[type] || MessageSquare;
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      appel: '📞 Appel',
+      email: '✉️ Email',
+      rendez_vous: '📅 Rendez-vous',
+      relance: '🔄 Relance',
+      note: '📝 Note',
+      autre: '📄 Autre',
+    };
+    return labels[type] || type;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.client_id) {
+      toastError('Veuillez sélectionner un client');
+      return;
+    }
+    try {
+      await createMutation.mutateAsync(form);
+      success('Interaction enregistrée ✅');
+      setShowForm(false);
+      setForm({ client_id: '', type: 'note', sujet: '', description: '', date_interaction: new Date().toISOString().split('T')[0] });
+      refetch();
+    } catch (err: any) {
+      toastError(err.message);
+    }
+  };
+
+  if (isLoading) return <div className="p-6 text-center text-[var(--color-textSecondary)]">Chargement...</div>;
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-textPrimary)]">📞 Interactions clients</h1>
+          <p className="text-sm text-[var(--color-textSecondary)]">Suivi des appels, emails, rendez-vous et relances</p>
+        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="px-4 py-2 rounded-xl bg-[var(--color-primary)] text-white flex items-center gap-2"
+        >
+          <Plus size={18} /> Nouvelle interaction
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
+          <input
+            type="text"
+            placeholder="Rechercher par client ou sujet..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+          />
+        </div>
+        <select
+          value={filtreType}
+          onChange={(e) => setFiltreType(e.target.value)}
+          className="px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+        >
+          <option value="">Tous types</option>
+          <option value="appel">📞 Appel</option>
+          <option value="email">✉️ Email</option>
+          <option value="rendez_vous">📅 Rendez-vous</option>
+          <option value="relance">🔄 Relance</option>
+          <option value="note">📝 Note</option>
+          <option value="autre">📄 Autre</option>
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <MotionBox type="card" variant="default" className="p-8 text-center text-[var(--color-textSecondary)]">
+          Aucune interaction trouvée.
+        </MotionBox>
+      ) : (
+        <MotionBox type="card" variant="elevated" className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead style={{ backgroundColor: 'var(--color-secondary)' }}>
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--color-textPrimary)]">Client</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--color-textPrimary)]">Type</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--color-textPrimary)]">Sujet</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--color-textPrimary)] hidden md:table-cell">Description</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-[var(--color-textPrimary)]">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((i) => {
+                  const Icon = getTypeIcon(i.type);
+                  return (
+                    <tr key={i.id} className="border-t border-[var(--color-borderColor)] hover:bg-[var(--color-secondary)]/50 transition">
+                      <td className="px-4 py-3 font-medium text-[var(--color-textPrimary)]">
+                        <div className="flex items-center gap-2">
+                          <User size={16} className="text-[var(--color-textSecondary)]" />
+                          {i.client?.nom} {i.client?.prenom || ''}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
+                          <Icon size={16} /> {getTypeLabel(i.type)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[var(--color-textPrimary)]">{i.sujet || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--color-textSecondary)] hidden md:table-cell">
+                        {i.description ? (i.description.length > 50 ? i.description.slice(0, 50) + '...' : i.description) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-[var(--color-textSecondary)]">
+                        {new Date(i.date_interaction).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </MotionBox>
+      )}
+
+      {showForm && (
+        <MotionBox
+          as="div"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
+          onClick={(e) => e.target === e.currentTarget && setShowForm(false)}
+          animation={{ animationInitiale: 'fadeIn' }}
+        >
+          <MotionBox
+            as="div"
+            type="card"
+            variant="xlarge"
+            className="w-full max-w-md p-6 bg-[var(--color-cardBg)] rounded-2xl shadow-2xl"
+            animation={{ animationInitiale: 'slideUp' }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-[var(--color-textPrimary)]">Nouvelle interaction</h3>
+              <button onClick={() => setShowForm(false)} className="text-[var(--color-textSecondary)]">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Client *</label>
+                <select
+                  value={form.client_id}
+                  onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                >
+                  <option value="">Sélectionner un client</option>
+                  {clients.filter((c: any) => c.actif).map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nom} {c.prenom || ''}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Type *</label>
+                <select
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value as TypeInteraction })}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                >
+                  <option value="appel">📞 Appel</option>
+                  <option value="email">✉️ Email</option>
+                  <option value="rendez_vous">📅 Rendez-vous</option>
+                  <option value="relance">🔄 Relance</option>
+                  <option value="note">📝 Note</option>
+                  <option value="autre">📄 Autre</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Sujet</label>
+                <input
+                  type="text"
+                  value={form.sujet}
+                  onChange={(e) => setForm({ ...form, sujet: e.target.value })}
+                  placeholder="Sujet de l'interaction"
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                  placeholder="Détails..."
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Date</label>
+                <input
+                  type="date"
+                  value={form.date_interaction}
+                  onChange={(e) => setForm({ ...form, date_interaction: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-borderColor)]">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[var(--color-primary)] text-white"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </MotionBox>
+        </MotionBox>
+      )}
+    </div>
+  );
+};
+
+export default InteractionsPage;

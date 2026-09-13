@@ -1,0 +1,416 @@
+.
+├── 1
+├── 4
+├── 68
+├── 69
+├── 70
+├── 71
+├── 9
+├── App.tsx
+├── contexts
+│   └── PageLoadingContext.tsx
+├── file_structure.txt
+├── finalize_offline.sh
+├── fix_part1.sh
+├── fix_part2.sh
+├── index.html
+├── install_offline.sh
+├── lib
+│   └── supabaseClient.ts
+├── package-lock.json
+├── package.json
+├── pages
+│   └── client
+│       └── CommandesPage.tsx
+├── postcss.config.js
+├── projet.txt
+├── public
+│   └── index.html
+├── setup_localdb.sh
+├── setup_part1.sh
+├── setup_part2.sh
+├── setup_part3.sh
+├── src
+│   ├── App.patch
+│   ├── App.tsx
+│   ├── components
+│   │   ├── boutique
+│   │   │   └── ServiceCard.tsx
+│   │   ├── caisse
+│   │   │   └── SessionStatusBadge.tsx
+│   │   ├── clients
+│   │   │   └── ClientSearchSelect.tsx
+│   │   ├── debug
+│   │   │   └── DebugConsole.tsx
+│   │   ├── dev
+│   │   │   └── RoleSwitcher.tsx
+│   │   ├── header
+│   │   │   ├── HeaderWrapper.tsx
+│   │   │   ├── hooks
+│   │   │   │   └── useHeader.ts
+│   │   │   ├── index.ts
+│   │   │   ├── registres
+│   │   │   │   └── headerRegistry.ts
+│   │   │   └── styles
+│   │   │       └── index.tsx
+│   │   ├── home
+│   │   │   └── widgets
+│   │   │       ├── WidgetBanner.tsx
+│   │   │       ├── WidgetCta.tsx
+│   │   │       ├── WidgetFeaturedProducts.tsx
+│   │   │       ├── WidgetFeatures.tsx
+│   │   │       ├── WidgetHero.tsx
+│   │   │       ├── WidgetProducts.tsx
+│   │   │       ├── WidgetTestimonials.tsx
+│   │   │       └── index.ts
+│   │   ├── layout
+│   │   │   ├── Header.tsx
+│   │   │   └── Sidebar.tsx
+│   │   ├── navigation
+│   │   │   ├── NavBar.tsx
+│   │   │   ├── NavbarWrapper.tsx
+│   │   │   ├── hooks
+│   │   │   │   └── useNavbar.ts
+│   │   │   ├── index.ts
+│   │   │   ├── registres
+│   │   │   │   └── navbarRegistry.ts
+│   │   │   └── styles
+│   │   │       ├── NavbarClassic.tsx
+│   │   │       ├── NavbarDark.tsx
+│   │   │       ├── NavbarFloating.tsx
+│   │   │       ├── NavbarGlass.tsx
+│   │   │       ├── NavbarGradient.tsx
+│   │   │       ├── NavbarMinimal.tsx
+│   │   │       ├── index.ts
+│   │   │       └── index.tsx
+│   │   ├── registres
+│   │   ├── settings
+│   │   │   ├── AppearanceSettings.tsx
+│   │   │   ├── IdentitySettings.tsx
+│   │   │   ├── InterfaceSettings.tsx
+│   │   │   ├── LocalizationSettings.tsx
+│   │   │   ├── NotificationSettings.tsx
+│   │   │   ├── SecuritySettings.tsx
+│   │   │   ├── SettingsCard.tsx
+│   │   │   ├── SettingsPreview.tsx
+│   │   │   ├── SettingsSection.tsx
+│   │   │   └── SystemSettings.tsx
+│   │   ├── shared
+│   │   ├── stock
+│   │   │   └── BarcodeScanner.tsx
+│   │   ├── stocks
+│   │   │   ├── CategoryQuickAdd.tsx
+│   │   │   ├── FournisseurQuickAdd.tsx
+│   │   │   ├── ProductDetailModal.tsx
+│   │   │   ├── ProductForm.tsx
+│   │   │   ├── ProductFormModal.tsx
+│   │   │   └── ReapprovisionnementModal.tsx
+│   │   ├── theme
+│   │   │   ├── MotionBoxUsageEditor.tsx
+│   │   │   ├── ThemeContext.tsx
+│   │   │   ├── resolveComponent.ts
+│   │   │   ├── theme-default.ts
+│   │   │   └── theme-types.ts
+│   │   ├── ui
+│   │   │   ├── AnnouncementBanner.tsx
+│   │   │   ├── AttributsEditor.tsx
+│   │   │   ├── AudioRecorder.tsx
+│   │   │   ├── BeneficiaireSelect.tsx
+│   │   │   ├── CachedImage.tsx
+│   │   │   ├── ColorPicker.tsx
+│   │   │   ├── CompteSearchSelect.tsx
+│   │   │   ├── FullPageLoader.tsx
+│   │   │   ├── FullScreenLoader.tsx
+│   │   │   ├── GlobalLoader.tsx
+│   │   │   ├── ImageUploader.tsx
+│   │   │   ├── LoadingScreen.tsx
+│   │   │   ├── MagasinSelector.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   ├── MotionBox.tsx
+│   │   │   ├── NotificationBell.tsx
+│   │   │   ├── NotificationToast.tsx
+│   │   │   ├── OfflineBanner.tsx
+│   │   │   ├── OfflineQueueIndicator.tsx
+│   │   │   ├── PageWrapper.tsx
+│   │   │   ├── PreviewModal.tsx
+│   │   │   ├── SyncStatus.tsx
+│   │   │   ├── UniversalList.tsx
+│   │   │   ├── UploadAudio.tsx
+│   │   │   ├── UploadButtons.tsx
+│   │   │   ├── UploadDocument.tsx
+│   │   │   └── UploadVideo.tsx
+│   │   └── widgets
+│   ├── config
+│   │   └── routes
+│   │       ├── auth.routes.ts
+│   │       ├── gestion
+│   │       │   ├── admin.routes.ts
+│   │       │   ├── caisse.routes.ts
+│   │       │   ├── clients.routes.ts
+│   │       │   ├── comptabilite.routes.ts
+│   │       │   ├── index.ts
+│   │       │   ├── management.routes.ts
+│   │       │   ├── rh.routes.ts
+│   │       │   ├── services.routes.ts
+│   │       │   └── stocks.routes.ts
+│   │       ├── index.ts
+│   │       ├── public.routes.ts
+│   │       └── types.ts
+│   ├── constants
+│   ├── contexts
+│   │   ├── ConfigContext.tsx
+│   │   ├── DataLoaderContext.tsx
+│   │   ├── DiagnosticContext.tsx
+│   │   ├── MagasinActifContext.tsx
+│   │   ├── NotificationContext.tsx
+│   │   ├── OfflineContext.tsx
+│   │   ├── OfflineQueue.ts
+│   │   └── PageLoadingContext.tsx
+│   ├── hooks
+│   │   ├── index.ts
+│   │   ├── useAttributsService.ts
+│   │   ├── useAuth.ts
+│   │   ├── useBoutique.ts
+│   │   ├── useClients.ts
+│   │   ├── useCommandesClient.ts
+│   │   ├── useComponentStyles.ts
+│   │   ├── useComptabilite.ts
+│   │   ├── useEmplacementsEntrepot.ts
+│   │   ├── useEntrepots.ts
+│   │   ├── useExport.ts
+│   │   ├── useFactures.ts
+│   │   ├── useFournisseurs.ts
+│   │   ├── useHistorique.ts
+│   │   ├── useHomeConfig.ts
+│   │   ├── useLocalStorage.ts
+│   │   ├── useMagasins.ts
+│   │   ├── useMessages.ts
+│   │   ├── useMouvements.ts
+│   │   ├── useNavigation.ts
+│   │   ├── useNotifications.ts
+│   │   ├── useOfflineMutation.ts
+│   │   ├── useOnlineStatus.ts
+│   │   ├── usePaiements.ts
+│   │   ├── useProduits.ts
+│   │   ├── useProduits.ts.bak
+│   │   ├── usePromotions.ts
+│   │   ├── useRH.ts
+│   │   ├── useReapprovisionnement.ts
+│   │   ├── useServices.ts
+│   │   ├── useSessions.ts
+│   │   ├── useToast.ts
+│   │   ├── useUsersByRole.ts
+│   │   └── useVentes.ts
+│   ├── i18n
+│   │   └── index.ts
+│   ├── index.css
+│   ├── index.tsx
+│   ├── lib
+│   │   ├── imageStorage.ts
+│   │   ├── localDb.ts
+│   │   ├── persistQueryClient.ts
+│   │   └── supabaseClient.ts
+│   ├── main.tsx
+│   ├── pages
+│   │   ├── Dashboard
+│   │   │   ├── DashboardRoot.tsx
+│   │   │   └── index.ts
+│   │   ├── DashboardPage.tsx
+│   │   ├── HomePage.tsx
+│   │   ├── MaintenancePage.tsx
+│   │   ├── admin
+│   │   │   ├── AnimationEditorPage.tsx
+│   │   │   ├── HistoriquePage.tsx
+│   │   │   ├── HomeEditorPage.tsx
+│   │   │   ├── MagasinFormPage.tsx
+│   │   │   ├── MagasinsPage.tsx
+│   │   │   ├── OfflineQueuePage.tsx
+│   │   │   ├── SettingsPage.tsx
+│   │   │   ├── ThemeEditorPage.tsx
+│   │   │   └── components
+│   │   │       ├── ThemeEditorClasses.tsx
+│   │   │       ├── ThemeEditorColors.tsx
+│   │   │       ├── ThemeEditorComponents.tsx
+│   │   │       ├── ThemeEditorPages.tsx
+│   │   │       ├── ThemeEditorPreview.tsx
+│   │   │       └── ThemeEditorTypography.tsx
+│   │   ├── analytics
+│   │   │   └── AnalyticsPage.tsx
+│   │   ├── auth
+│   │   │   ├── LoginPage.tsx
+│   │   │   └── RegisterPage.tsx
+│   │   ├── boutique
+│   │   │   ├── BoutiquePage.tsx
+│   │   │   ├── CommandesPage.tsx
+│   │   │   ├── PanierPage.tsx
+│   │   │   ├── ServiceDetailPage.tsx
+│   │   │   ├── ServicesPage.tsx
+│   │   │   └── index.ts
+│   │   ├── caisse
+│   │   │   ├── CaissePage.tsx
+│   │   │   ├── CaisseRoot.tsx
+│   │   │   ├── NegociationPage.tsx
+│   │   │   ├── RapportsPage.tsx
+│   │   │   ├── SessionDetailPage.tsx
+│   │   │   ├── SessionsPage.tsx
+│   │   │   ├── VenteFormPage.tsx
+│   │   │   └── VentesPage.tsx
+│   │   ├── client
+│   │   │   ├── CommandeDetailPage.tsx
+│   │   │   ├── CommandeFormPage.tsx
+│   │   │   └── CommandesPage.tsx
+│   │   ├── clients
+│   │   │   ├── ClientDetailPage.tsx
+│   │   │   ├── ClientFormPage.tsx
+│   │   │   ├── ClientsPage.tsx
+│   │   │   ├── ClientsRoot.tsx
+│   │   │   ├── CommandeClientDetailPage.tsx
+│   │   │   ├── CommandeClientFormPage.tsx
+│   │   │   ├── CommandesClientPage.tsx
+│   │   │   ├── FidelitePage.tsx
+│   │   │   ├── InteractionsPage.tsx
+│   │   │   ├── NouvelleCommandePage.tsx
+│   │   │   └── RapportsPage.tsx
+│   │   ├── comptabilite
+│   │   │   ├── BilanPage.tsx
+│   │   │   ├── ChargeFormPage.tsx
+│   │   │   ├── ChargesPage.tsx
+│   │   │   ├── ComptabilitePage.tsx
+│   │   │   ├── ComptabiliteRoot.tsx
+│   │   │   ├── CompteResultatPage.tsx
+│   │   │   ├── FactureFormPage.tsx
+│   │   │   ├── FacturesPage.tsx
+│   │   │   ├── JournalPage.tsx
+│   │   │   ├── PlanComptablePage.tsx
+│   │   │   ├── RappelsPage.tsx
+│   │   │   ├── SaisieComptable.tsx
+│   │   │   └── TransactionsPage.tsx
+│   │   ├── contracts
+│   │   │   └── ContractsPage.tsx
+│   │   ├── demandes
+│   │   │   └── DemandesPage.tsx
+│   │   ├── entrepots
+│   │   │   ├── EmplacementsPage.tsx
+│   │   │   ├── EntrepotDetailPage.tsx
+│   │   │   ├── EntrepotFormPage.tsx
+│   │   │   └── EntrepotsPage.tsx
+│   │   ├── gestion
+│   │   │   ├── ManagementRoot.tsx
+│   │   │   └── services
+│   │   │       ├── AttributsServiceSettings.tsx
+│   │   │       ├── ServiceDetailPage.tsx
+│   │   │       ├── ServiceFormPage.tsx
+│   │   │       ├── ServicesAdminPage.tsx
+│   │   │       └── index.ts
+│   │   ├── home
+│   │   ├── maintenance
+│   │   │   └── MaintenancePage.tsx
+│   │   ├── management
+│   │   │   └── ManagementRoot.tsx
+│   │   ├── messagerie
+│   │   ├── messages
+│   │   │   ├── MessageCompose.tsx
+│   │   │   ├── MessageDetail.tsx
+│   │   │   ├── MessageList.tsx
+│   │   │   └── MessagesPage.tsx
+│   │   ├── notifications
+│   │   │   └── NotificationsPage.tsx
+│   │   ├── profile
+│   │   ├── rh
+│   │   │   ├── CongesPage.tsx
+│   │   │   ├── ContratsPage.tsx
+│   │   │   ├── DemandesAbsencePage.tsx
+│   │   │   ├── EmployeFormPage.tsx
+│   │   │   ├── EmployesPage.tsx
+│   │   │   ├── FichesPaiePage.tsx
+│   │   │   ├── PointagesPage.tsx
+│   │   │   └── RHPage.tsx
+│   │   └── stocks
+│   │       ├── CategoriesPage.tsx
+│   │       ├── FournisseursPage.tsx
+│   │       ├── InventaireHome.tsx
+│   │       ├── InventaireListe.tsx
+│   │       ├── InventairePage.tsx
+│   │       ├── LignesInventairePage.tsx
+│   │       ├── MouvementsPage.tsx
+│   │       ├── PertesPage.tsx
+│   │       ├── ProductFilters.tsx
+│   │       ├── ProductForm.tsx
+│   │       ├── ProductFormPage.tsx
+│   │       ├── ProduitRoot.tsx
+│   │       ├── PromotionsPage.tsx
+│   │       ├── StockDashboard.tsx
+│   │       ├── StockIndicator.tsx
+│   │       ├── StockModulePage.tsx
+│   │       └── StocksPage.tsx
+│   ├── react-app-env.d.ts
+│   ├── registres
+│   │   ├── animationPresets.ts
+│   │   ├── componentRegistry.ts
+│   │   ├── componentRegistry_part1.ts
+│   │   ├── componentRegistry_part2.ts
+│   │   ├── componentRegistry_part3.ts
+│   │   ├── index.ts
+│   │   ├── lucideRegistry.ts
+│   │   ├── modules
+│   │   │   ├── clientModules.ts
+│   │   │   ├── helpers.ts
+│   │   │   ├── mainModules.ts
+│   │   │   ├── management
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── managementAdmin.ts
+│   │   │   │   ├── managementCaisse.ts
+│   │   │   │   ├── managementClients.ts
+│   │   │   │   ├── managementComptabilite.ts
+│   │   │   │   ├── managementDashboard.ts
+│   │   │   │   ├── managementEntrepotsMagasins.ts
+│   │   │   │   ├── managementRH.ts
+│   │   │   │   ├── managementServices.ts
+│   │   │   │   └── managementStocks.ts
+│   │   │   ├── managementStocks.ts
+│   │   │   ├── otherModules.ts
+│   │   │   └── types.ts
+│   │   ├── modulesRegistry.ts
+│   │   ├── modulesRegistry.ts.bak
+│   │   ├── motionBoxRegistry.ts
+│   │   ├── motionBoxUsages.ts
+│   │   ├── navigationRegistry.ts
+│   │   └── tailwindRegistry.ts
+│   ├── routes
+│   │   ├── gestion.routes.ts
+│   │   ├── index.ts
+│   │   └── public.routes.ts
+│   ├── types
+│   │   ├── attributsService.ts
+│   │   ├── boutique.ts
+│   │   ├── caisse.ts
+│   │   ├── clients.ts
+│   │   ├── commandeClient.ts
+│   │   ├── comptabilite.ts
+│   │   ├── css.ts
+│   │   ├── emplacementEntrepot.ts
+│   │   ├── entrepot.ts
+│   │   ├── facture.ts
+│   │   ├── historique.ts
+│   │   ├── homeConfig.ts
+│   │   ├── index.ts
+│   │   ├── magasins.ts
+│   │   ├── messages.ts
+│   │   ├── modules.ts
+│   │   ├── navigation.ts
+│   │   ├── notification.ts
+│   │   ├── promotion.ts
+│   │   ├── rh.ts
+│   │   ├── services.ts
+│   │   ├── stock.ts
+│   │   └── theme.ts
+│   ├── utils
+│   │   └── generateInvoicePDF.ts
+│   └── vite-env.d.ts
+├── structure_clean.txt
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+71 directories, 343 files

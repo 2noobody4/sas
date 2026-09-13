@@ -1,0 +1,310 @@
+/**
+ * ProductDetailModal – Pop-up pour afficher la fiche complète d’un produit
+ * Utilise MotionBox pour l’animation et le style.
+ * Compatible React 16.14.
+ */
+
+import React, { useState } from 'react';
+import { MotionBox } from '../ui/MotionBox';
+import { CachedImage } from '../ui/CachedImage';
+import {
+  X,
+  Package,
+  Tag,
+  DollarSign,
+  AlertTriangle,
+  Calendar,
+  User,
+  Truck,
+  Edit,
+  TrendingUp,
+  FileText,
+  Settings,
+  RefreshCw,
+} from 'lucide-react';
+import { Produit } from '../../types/stock';
+import { useHistory } from 'react-router-dom';
+import { ReapprovisionnementModal } from './ReapprovisionnementModal';
+
+interface ProductDetailModalProps {
+  produit: Produit | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onEdit?: () => void;
+  onRefresh?: () => void;
+}
+
+export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
+  produit,
+  isOpen,
+  onClose,
+  onEdit,
+  onRefresh,
+}) => {
+  const history = useHistory();
+  const [showReapproModal, setShowReapproModal] = useState(false);
+
+  if (!isOpen || !produit) return null;
+
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit();
+    } else {
+      history.push(`/gestion/stocks/produits/${produit.id}`);
+    }
+    onClose();
+  };
+
+  const handleReapproSuccess = () => {
+    onRefresh?.();
+    // La modal se ferme automatiquement via le composant
+  };
+
+  const isStockLow = produit.quantite <= produit.seuil_alerte && produit.quantite > 0;
+  const isOutOfStock = produit.quantite === 0;
+
+  // Récupérer le fournisseur_id de manière sécurisée
+  const fournisseurId = (produit as any).fournisseur_id || (produit as any).fournisseurId;
+
+  return (
+    <>
+      <MotionBox
+        as="div"
+        className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+        animation={{ animationInitiale: 'fadeIn' }}
+      >
+        <MotionBox
+          as="div"
+          type="card"
+          variant="xlarge"
+          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 bg-[var(--color-cardBg)] rounded-2xl shadow-2xl"
+          animation={{ animationInitiale: 'slideUp' }}
+        >
+          {/* En-tête */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              {produit.image_url ? (
+                <CachedImage
+                  src={produit.image_url}
+                  alt={produit.nom}
+                  className="w-16 h-16 rounded-xl object-cover"
+                  useMotionBox={true}
+                  motionBoxProps={{ type: 'image', variant: 'thumbnail' }}
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-[var(--color-secondary)] flex items-center justify-center">
+                  <Package size={32} className="text-[var(--color-textSecondary)]" />
+                </div>
+              )}
+              <div>
+                <h2 className="text-2xl font-bold text-[var(--color-textPrimary)]">{produit.nom}</h2>
+                <p className="text-sm text-[var(--color-textSecondary)]">
+                  Réf: {produit.reference || 'N/A'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-[var(--color-secondary)] transition text-[var(--color-textSecondary)]"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Grille d’informations */}
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            {/* Catégorie */}
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <Tag size={16} />
+                <span>Catégorie</span>
+              </div>
+              <p className="font-medium text-[var(--color-textPrimary)]">
+                {produit.categorie?.nom || 'Non catégorisé'}
+              </p>
+            </div>
+
+            {/* Unité */}
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <Package size={16} />
+                <span>Unité</span>
+              </div>
+              <p className="font-medium text-[var(--color-textPrimary)]">{produit.unite}</p>
+            </div>
+
+            {/* Prix d'achat */}
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <DollarSign size={16} />
+                <span>Prix d'achat</span>
+              </div>
+              <p className="font-medium text-[var(--color-textPrimary)]">
+                {produit.prix_achat.toLocaleString()} FCFA
+              </p>
+            </div>
+
+            {/* Prix de vente */}
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <DollarSign size={16} />
+                <span>Prix de vente</span>
+              </div>
+              <p className="font-medium text-[var(--color-textPrimary)]">
+                {produit.prix_vente.toLocaleString()} FCFA
+              </p>
+            </div>
+
+            {/* Quantité / Stock */}
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)] col-span-2">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <AlertTriangle size={16} />
+                <span>Stock</span>
+              </div>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="font-medium text-[var(--color-textPrimary)]">
+                  {produit.quantite} {produit.unite}
+                </span>
+                {isOutOfStock && (
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--color-danger)] text-white">
+                    Rupture
+                  </span>
+                )}
+                {isStockLow && !isOutOfStock && (
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--color-warning)] text-white">
+                    Stock bas ({produit.seuil_alerte})
+                  </span>
+                )}
+                {!isStockLow && !isOutOfStock && (
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--color-success)] text-white">
+                    OK
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Marge et bénéfice */}
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <TrendingUp size={16} />
+                <span>Marge</span>
+              </div>
+              <p className="font-medium text-[var(--color-textPrimary)]">
+                {produit.prix_achat > 0
+                  ? Math.round(((produit.prix_vente - produit.prix_achat) / produit.prix_achat) * 100)
+                  : 0}%
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <DollarSign size={16} />
+                <span>Bénéfice net</span>
+              </div>
+              <p className="font-medium text-[var(--color-textPrimary)]">
+                {(produit.prix_vente - produit.prix_achat).toLocaleString()} FCFA
+              </p>
+            </div>
+
+            {/* Description (si présente) */}
+            {produit.description && (
+              <div className="p-3 rounded-xl bg-[var(--color-secondary)] col-span-2">
+                <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                  <FileText size={16} />
+                  <span>Description</span>
+                </div>
+                <p className="text-sm text-[var(--color-textPrimary)] mt-1">{produit.description}</p>
+              </div>
+            )}
+
+            {/* Attributs personnalisés */}
+            {produit.attributs && Object.keys(produit.attributs).length > 0 && (
+              <div className="p-3 rounded-xl bg-[var(--color-secondary)] col-span-2">
+                <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                  <Settings size={16} />
+                  <span>Attributs</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {Object.entries(produit.attributs).map(([key, value]) => (
+                    <div key={key} className="flex justify-between text-sm">
+                      <span className="text-[var(--color-textSecondary)]">{key}</span>
+                      <span className="font-medium text-[var(--color-textPrimary)]">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Fournisseur (si présent) */}
+            {fournisseurId && (
+              <div className="p-3 rounded-xl bg-[var(--color-secondary)] col-span-2">
+                <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                  <Truck size={16} />
+                  <span>Fournisseur</span>
+                </div>
+                <p className="font-medium text-[var(--color-textPrimary)]">{fournisseurId}</p>
+              </div>
+            )}
+
+            {/* Dates */}
+            <div className="p-3 rounded-xl bg-[var(--color-secondary)] col-span-2">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-textSecondary)]">
+                <Calendar size={16} />
+                <span>Dates</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
+                <div>
+                  <span className="text-[var(--color-textSecondary)]">Créé le :</span>
+                  <span className="ml-2 font-medium text-[var(--color-textPrimary)]">
+                    {produit.created_at ? new Date(produit.created_at).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[var(--color-textSecondary)]">Modifié le :</span>
+                  <span className="ml-2 font-medium text-[var(--color-textPrimary)]">
+                    {produit.updated_at ? new Date(produit.updated_at).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--color-borderColor)]">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
+            >
+              Fermer
+            </button>
+            <button
+              onClick={() => setShowReapproModal(true)}
+              className="px-4 py-2 rounded-xl bg-[var(--color-success)] text-white flex items-center gap-2"
+            >
+              <RefreshCw size={18} />
+              Réapprovisionner
+            </button>
+            <button
+              onClick={handleEdit}
+              className="px-4 py-2 rounded-xl bg-[var(--color-primary)] text-white flex items-center gap-2"
+            >
+              <Edit size={18} />
+              Modifier
+            </button>
+          </div>
+        </MotionBox>
+      </MotionBox>
+
+      {/* Popup de réapprovisionnement */}
+      <ReapprovisionnementModal
+        produit={produit}
+        isOpen={showReapproModal}
+        onClose={() => setShowReapproModal(false)}
+        onSuccess={handleReapproSuccess}
+      />
+    </>
+  );
+};
+
+export default ProductDetailModal;

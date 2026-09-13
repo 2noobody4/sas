@@ -1,0 +1,15 @@
+try {
+  const cached = localStorage.getItem(STORAGE_KEY);
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    Object.keys(parsed).forEach((key) => {
+      const data = parsed[key];
+      if (data && typeof data === 'object' && 'state' in data) {
+        // key est une chaîne, on le met dans un tableau pour QueryKey
+        queryClient.setQueryData([key], data.state.data);
+      }
+    });
+  }
+} catch (e) {
+  console.warn('[App] Erreur restauration cache:', e);
+}
