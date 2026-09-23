@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply m-0 p-0 box-border;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400 transition;
+  }
+
+  /* Sélection de texte */
+  ::selection {
+    @apply bg-primary-500 text-white;
+  }
+}
+
+@layer components {
+  /* Conteneurs */
+  .container-pme {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Boutons */
+  .btn-pme {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 cursor-pointer;
+  }
+
+  .btn-pme-primary {
+    @apply bg-primary-500 text-white hover:bg-primary-600 active:scale-95;
+  }
+
+  .btn-pme-secondary {
+    @apply bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95;
+  }
+
+  .btn-pme-danger {
+    @apply bg-danger-500 text-white hover:bg-danger-600 active:scale-95;
+  }
+
+  /* Cartes */
+  .card-pme {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-4;
+  }
+
+  .card-pme-elevated {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100 p-6;
+  }
+
+  /* Badges */
+  .badge-pme {
+    @apply inline-flex items-center justify-center px-2.5 py-0.5 text-xs font-bold rounded-full;
+  }
+
+  .badge-pme-primary {
+    @apply bg-primary-100 text-primary-700;
+  }
+
+  .badge-pme-success {
+    @apply bg-success-100 text-success-700;
+  }
+
+  .badge-pme-danger {
+    @apply bg-danger-100 text-danger-700;
+  }
+}
+
+/* ============================================================
+// INPUTS — Bordures plus épaisses
+// ============================================================ */
+
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  textarea,
+  select {
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: var(--color-primary) !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+  textarea:focus,
+  select:focus {
+    border-width: 2px !important;
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 4px rgba(30, 58, 95, 0.2) !important;
+    outline: none !important;
+  }
+}
+
+/* ============================================================
+   MODAL SAFE AREA — Marge de 30px avec header/navbar (anti-overflow)
+   Ajouté par fix-modals-overflow.sh
+   V2 — mesure en unités de VIEWPORT réelles (dvh), plus fiable sur
+   mobile que "fixed inset-0" + "max-height:100%" (qui se base sur le
+   layout viewport, pas le viewport visuel réellement affiché, et dont
+   la résolution en % sur un enfant flex n'est pas garantie partout).
+============================================================ */
+:root {
+  --header-h: 64px;
+  --navbar-h: 64px;
+  --modal-gap: 30px;
+}
+
+.modal-overlay-safe {
+  height: 100vh;   /* repli navigateurs anciens */
+  height: 100dvh;  /* hauteur de viewport RÉELLE (barre d'adresse incluse/exclue dynamiquement) */
+  padding-top: calc(var(--header-h, 64px) + var(--modal-gap, 30px));
+  padding-bottom: calc(var(--navbar-h, 64px) + var(--modal-gap, 30px));
+  padding-left: 16px;
+  padding-right: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.modal-content-safe {
+  /* Espace réellement disponible = viewport - header - navbar - marges,
+     calculé directement en dvh (fallback vh) plutôt qu'en % d'un parent */
+  --modal-available-h: calc(100vh - var(--header-h, 64px) - var(--navbar-h, 64px) - (var(--modal-gap, 30px) * 2));
+  max-height: min(var(--modal-max-h, 70vh), var(--modal-available-h));
+  box-sizing: border-box;
+}
+
+@supports (height: 100dvh) {
+  .modal-content-safe {
+    --modal-available-h: calc(100dvh - var(--header-h, 64px) - var(--navbar-h, 64px) - (var(--modal-gap, 30px) * 2));
+  }
+}

@@ -1,0 +1,422 @@
+// ============================================================
+// NOUVELLE DEMANDE SERVICE MODAL
+// Version V2 — Colonne description
+// ============================================================
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { MotionBox } from './MotionBox';
+import { useServices, useService } from '../hooks/useServices';
+import { useAttributsService } from '../hooks/useAttributsService';
+import { useClients } from '../hooks/useClients';
+import { useCreateDemandeService } from '../hooks/useDemandesService';
+import { Service } from '../types/services';
+import {
+  TypeFacturationDemande, ModePaiementDemande,
+  MODES_PAIEMENT_DEMANDE,
+} from '../types/demandesService';
+import {
+  X, Search, Briefcase, User, Calendar, Send,
+  CheckCircle, ChevronRight, Mail, Phone, FileText,
+  Hash, ArrowLeft,
+} from 'lucide-react';
+import { useToast } from '../hooks/useToast';
+
+interface NouvelleDemandeServiceModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+type Step = 'select-service' | 'fill-form';
+
+export const NouvelleDemandeServiceModal: React.FC<NouvelleDemandeServiceModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
+  const { data: services = [], isLoading: servicesLoading } = useServices({ disponible: true });
+  const { data: attributs = [] } = useAttributsService();
+  const { data: clients = [] } = useClients();
+  const createMutation = useCreateDemandeService();
+  const { success, error: toastError } = useToast();
+
+  const [step, setStep] = useState<Step>('select-service');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [clientId, setClientId] = useState<string>('');
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState('');
+  const [dateSouhaitee, setDateSouhaitee] = useState('');
+  const [typeFacturation, setTypeFacturation] = useState<TypeFacturationDemande>('forfait');
+  const [modePaiement, setModePaiement] = useState<ModePaiementDemande>('total');
+  const [montantAcompte, setMontantAcompte] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+
+  const { data: selectedService } = useService(selectedServiceId || undefined);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStep('select-service');
+      setSearchTerm('');
+      setSelectedServiceId('');
+      setClientId('');
+      setFormData({});
+      setNotes('');
+      setDateSouhaitee('');
+      setTypeFacturation('forfait');
+      setModePaiement('total');
+      setMontantAcompte(0);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedService?.mode_paiement === 'horaire') setTypeFacturation('horaire');
+    else setTypeFacturation('forfait');
+  }, [selectedService]);
+
+  const typesFacturationDisponibles = useMemo<{ value: TypeFacturationDemande; label: string }[]>(() => {
+    if (!selectedService) return [];
+    const mode = selectedService.mode_paiement || 'forfait';
+    if (mode === 'forfait') return [{ value: 'forfait', label: '💰 Forfait' }];
+    if (mode === 'horaire') return [{ value: 'horaire', label: '⏱️ À l\'heure' }];
+    return [
+      { value: 'forfait', label: '💰 Forfait' },
+      { value: 'horaire', label: '⏱️ À l\'heure' },
+    ];
+  }, [selectedService]);
+  const showFacturationSelector = typesFacturationDisponibles.length > 1;
+
+  const filteredServices = useMemo(() => {
+    if (!searchTerm.trim()) return services;
+    const q = searchTerm.toLowerCase();
+    return services.filter(
+      (s) => s.nom.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q)
+    );
+  }, [services, searchTerm]);
+
+  if (!isOpen) return null;
+
+  const handleSelectService = (service: Service) => {
+    setSelectedServiceId(service.id);
+    setFormData({});
+    setStep('fill-form');
+  };
+
+  const handleBack = () => {
+    setStep('select-service');
+    setSelectedServiceId('');
+  };
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'email': return <Mail size={16} />;
+      case 'tel': return <Phone size={16} />;
+      case 'textarea': return <FileText size={16} />;
+      case 'date': return <Calendar size={16} />;
+      case 'number': return <Hash size={16} />;
+      default: return <User size={16} />;
+    }
+  };
+
+  const attributsRequis = (
+    selectedService?.attributs && selectedService.attributs.length > 0
+      ? selectedService.attributs
+      : attributs.filter((a) => selectedService?.informations_requises?.includes(a.id))
+  ).filter((a: any) => a.type !== 'date');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedServiceId) return;
+
+    for (const attr of attributsRequis) {
+      if (attr.obligatoire && !formData[attr.id]?.trim()) {
+        toastError(`Le champ "${attr.nom}" est obligatoire`);
+        return;
+      }
+    }
+
+    if (modePaiement === 'acompte' && (!montantAcompte || montantAcompte <= 0)) {
+      toastError('Merci d\'indiquer le montant de l\'acompte');
+      return;
+    }
+    if (modePaiement === 'acompte' && selectedService && montantAcompte >= selectedService.prix) {
+      toastError('L\'acompte doit être inférieur au prix du service');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createMutation.mutateAsync({
+        service_id: selectedServiceId,
+        client_id: clientId || undefined,
+        informations: formData,
+        date_souhaitee: dateSouhaitee || undefined,
+        notes: notes || undefined,
+        type_facturation: typeFacturation,
+        mode_paiement: modePaiement,
+        montant_acompte: modePaiement === 'acompte' ? montantAcompte : undefined,
+      });
+      success('Demande créée ✅');
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      toastError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <MotionBox
+      as="div"
+      className="fixed inset-0 bg-black/60 flex items-start sm:items-center justify-center z-[200] modal-overlay-safe"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      animation={{ animationInitiale: 'fadeIn' }}
+    >
+      <MotionBox
+        as="div"
+        type="card"
+        variant="xlarge"
+        className="w-full max-w-3xl modal-content-safe my-auto flex flex-col bg-[var(--color-cardBg)] rounded-2xl shadow-2xl overflow-hidden"
+        style={{ proprietes: { padding: 0 } as any }}
+        animation={{ animationInitiale: 'slideUp' }}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-borderColor)] bg-[var(--color-secondary)] flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {step === 'fill-form' && (
+              <button onClick={handleBack} className="p-1.5 rounded hover:bg-[var(--color-cardBg)] text-[var(--color-textSecondary)]">
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            <h3 className="text-xl font-bold text-[var(--color-textPrimary)] flex items-center gap-2">
+              <Send size={22} className="text-[var(--color-primary)]" />
+              {step === 'select-service' ? 'Choisir un service' : 'Détails de la demande'}
+            </h3>
+          </div>
+          <button onClick={onClose} className="text-[var(--color-textSecondary)] hover:text-[var(--color-textPrimary)]">
+            <X size={22} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          {step === 'select-service' && (
+            <>
+              <div className="relative mb-4">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher un service disponible..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+
+              {servicesLoading ? (
+                <div className="p-8 text-center text-[var(--color-textSecondary)]">Chargement...</div>
+              ) : filteredServices.length === 0 ? (
+                <div className="p-8 text-center text-[var(--color-textSecondary)]">
+                  <Briefcase size={48} className="mx-auto opacity-30 mb-4" />
+                  <p>Aucun service disponible</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredServices.map((service) => (
+                    <button
+                      key={service.id}
+                      onClick={() => handleSelectService(service)}
+                      className="w-full p-3 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] hover:border-[var(--color-primary)] hover:bg-[var(--color-secondary)] transition text-left flex items-center gap-3"
+                    >
+                      <div className="w-14 h-14 rounded-lg bg-[var(--color-secondary)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {service.image_url ? (
+                          <img src={service.image_url} alt={service.nom} className="w-full h-full object-cover" />
+                        ) : (
+                          <Briefcase size={24} className="text-[var(--color-textSecondary)] opacity-40" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-[var(--color-textPrimary)] truncate block">
+                          {service.nom}
+                        </span>
+                        <p className="text-sm text-[var(--color-textSecondary)] truncate">
+                          {service.description}
+                        </p>
+                      </div>
+                      <ChevronRight size={20} className="text-[var(--color-textSecondary)] flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 'fill-form' && selectedService && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="p-3 rounded-xl bg-[var(--color-secondary)] flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-[var(--color-cardBg)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {selectedService.image_url ? (
+                    <img src={selectedService.image_url} alt={selectedService.nom} className="w-full h-full object-cover" />
+                  ) : (
+                    <Briefcase size={20} className="text-[var(--color-textSecondary)] opacity-40" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-[var(--color-textPrimary)]">{selectedService.nom}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-1">
+                  Client <span className="text-xs text-[var(--color-textSecondary)]">(optionnel)</span>
+                </label>
+                <select
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                >
+                  <option value="">Sans client associé</option>
+                  {clients.filter((c: any) => c.actif !== false).map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nom} {c.prenom || ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {attributsRequis.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-[var(--color-textPrimary)]">Informations requises</p>
+                  {attributsRequis.map((attr: any) => (
+                    <div key={attr.id}>
+                      <label className="block text-sm font-medium text-[var(--color-textPrimary)]">
+                        {attr.nom}
+                        {attr.obligatoire && <span className="text-[var(--color-danger)]"> *</span>}
+                      </label>
+                      <div className="relative mt-1">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]">
+                          {getIcon(attr.type)}
+                        </div>
+                        {attr.type === 'textarea' ? (
+                          <textarea
+                            value={formData[attr.id] || ''}
+                            onChange={(e) => setFormData({ ...formData, [attr.id]: e.target.value })}
+                            rows={2}
+                            required={attr.obligatoire}
+                            className="w-full pl-10 pr-4 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                          />
+                        ) : (
+                          <input
+                            type={attr.type === 'number' ? 'number' : attr.type}
+                            value={formData[attr.id] || ''}
+                            onChange={(e) => setFormData({ ...formData, [attr.id]: e.target.value })}
+                            required={attr.obligatoire}
+                            className="w-full pl-10 pr-4 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-1">
+                  Date souhaitée
+                </label>
+                <input
+                  type="date"
+                  value={dateSouhaitee}
+                  onChange={(e) => setDateSouhaitee(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+
+              {showFacturationSelector && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-1">
+                    Type de facturation
+                  </label>
+                  <select
+                    value={typeFacturation}
+                    onChange={(e) => setTypeFacturation(e.target.value as TypeFacturationDemande)}
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                  >
+                    {typesFacturationDisponibles.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-1">
+                  Mode de paiement
+                </label>
+                <select
+                  value={modePaiement}
+                  onChange={(e) => setModePaiement(e.target.value as ModePaiementDemande)}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                >
+                  {MODES_PAIEMENT_DEMANDE.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {modePaiement === 'acompte' && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-1">
+                    Montant de l'acompte (FCFA) <span className="text-[var(--color-danger)]">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={selectedService ? selectedService.prix - 1 : undefined}
+                    value={montantAcompte || ''}
+                    onChange={(e) => setMontantAcompte(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+            </form>
+          )}
+        </div>
+
+        {step === 'fill-form' && (
+          <div className="flex justify-end gap-3 p-4 border-t border-[var(--color-borderColor)] bg-[var(--color-secondary)] flex-shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className={`px-4 py-2 rounded-xl text-white flex items-center gap-2 ${
+                loading ? 'bg-[var(--color-borderColor)] cursor-not-allowed opacity-60' : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]'
+              }`}
+            >
+              {loading ? 'Envoi...' : <><CheckCircle size={16} /> Créer la demande</>}
+            </button>
+          </div>
+        )}
+      </MotionBox>
+    </MotionBox>
+  );
+};
+
+export default NouvelleDemandeServiceModal;

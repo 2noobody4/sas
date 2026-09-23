@@ -1,0 +1,143 @@
+// ============================================================
+// MODAL — Composant modal réutilisable
+// Version V3 — Compatible React 16.14
+// ============================================================
+
+import React, { ReactNode } from 'react';
+import { MotionBox } from './MotionBox';
+import { X } from 'lucide-react';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  icon?: ReactNode;
+  children: ReactNode;
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | 'full';
+  maxHeight?: string;
+  showHeader?: boolean;
+  showFooter?: boolean;
+  footer?: ReactNode;
+  className?: string;
+  headerClassName?: string;
+  contentClassName?: string;
+  footerClassName?: string;
+  onOverlayClick?: () => void;
+}
+
+const maxWidthClasses = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-xl',
+  '2xl': 'max-w-2xl',
+  '3xl': 'max-w-3xl',
+  '4xl': 'max-w-4xl',
+  '5xl': 'max-w-5xl',
+  full: 'max-w-full',
+};
+
+export const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  icon,
+  children,
+  maxWidth = '2xl',
+  maxHeight = '70vh',
+  showHeader = true,
+  showFooter = false,
+  footer,
+  className = '',
+  headerClassName = '',
+  contentClassName = '',
+  footerClassName = '',
+  onOverlayClick,
+}) => {
+  if (!isOpen) return null;
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onOverlayClick?.();
+      onClose();
+    }
+  };
+
+  // ✅ Construction des classes — la marge de sécurité (header/navbar + 30px)
+  // est gérée par l'overlay (.modal-overlay-safe), plus besoin de mt-[64px] figé
+  const modalClasses = `w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden modal-content-safe ${className}`;
+
+  // ✅ Style via proprietes pour MotionBox — on transmet la hauteur max
+  // souhaitée via la variable CSS --modal-max-h ; c'est .modal-content-safe
+  // (index.css) qui calcule le plafond réel avec min(--modal-max-h, espace
+  // disponible en dvh), mesuré en unités de VIEWPORT réelles plutôt qu'en
+  // pourcentage d'un parent flex — pour ne jamais déborder sous le header
+  // ou la navbar, y compris sur mobile (barre d'adresse dynamique).
+  const modalStyle = {
+    proprietes: {
+      ['--modal-max-h' as any]: maxHeight,
+      backgroundColor: '#FFFFFF',
+    },
+  };
+
+  return (
+    <MotionBox
+      as="div"
+      className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center modal-overlay-safe"
+      onClick={handleOverlayClick}
+      animation={{ animationInitiale: 'fadeIn' }}
+    >
+      <MotionBox
+        as="div"
+        className={modalClasses}
+        style={modalStyle}
+        animation={{ animationInitiale: 'slideUp' }}
+      >
+        {/* HEADER */}
+        {showHeader && (
+          <div className={`sticky top-0 z-10 bg-white rounded-t-2xl px-4 pt-4 pb-3 border-b border-gray-200 flex-shrink-0 ${headerClassName}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                {icon && (
+                  <div className="p-2 rounded-xl bg-blue-50 text-[var(--color-primary)]">
+                    {icon}
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+                  {subtitle && (
+                    <p className="text-sm text-gray-500">{subtitle}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-full hover:bg-gray-100 transition text-gray-400 hover:text-gray-600"
+                aria-label="Fermer"
+              >
+                <X size={24} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* CONTENU */}
+        <div className={`flex-1 overflow-y-auto px-4 py-4 bg-white ${contentClassName}`}>
+          {children}
+        </div>
+
+        {/* FOOTER */}
+        {showFooter && footer && (
+          <div className={`sticky bottom-0 z-10 bg-white rounded-b-2xl px-4 py-3 border-t border-gray-200 flex-shrink-0 ${footerClassName}`}>
+            {footer}
+          </div>
+        )}
+      </MotionBox>
+    </MotionBox>
+  );
+};
+
+export default Modal;
+

@@ -1,0 +1,150 @@
+// ============================================================
+// CATEGORY QUICK ADD SERVICE — Pop-up création rapide catégorie service
+// Version V1 — Compatible React 16
+// ============================================================
+
+import React, { useState } from 'react';
+import { MotionBox } from './MotionBox';
+import { X, Tag, Plus, Save } from 'lucide-react';
+import { useCreateCategorieService } from '../hooks/useCategoriesService';
+import { useToast } from '../hooks/useToast';
+
+interface CategoryQuickAddServiceProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (categoryId: string) => void;
+}
+
+const COLORS = [
+  '#1E3A5F', '#2F9E44', '#E03131', '#E8A33D', '#1971C2',
+  '#6C5CE7', '#F76707', '#0CA678', '#845EF7', '#E64980',
+];
+
+export const CategoryQuickAddService: React.FC<CategoryQuickAddServiceProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
+  const createMutation = useCreateCategorieService();
+  const { success, error: toastError } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    nom: '',
+    description: '',
+    couleur: '#1E3A5F',
+  });
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nom.trim()) {
+      toastError('Le nom est obligatoire');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await createMutation.mutateAsync(form);
+      onSuccess(result.id);
+      success('Catégorie de service créée ✅');
+      setForm({ nom: '', description: '', couleur: '#1E3A5F' });
+      onClose();
+    } catch (err: any) {
+      toastError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <MotionBox
+      as="div"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] modal-overlay-safe"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      animation={{ animationInitiale: 'fadeIn' }}
+    >
+      <MotionBox
+        as="div"
+        type="card"
+        variant="xlarge"
+        className="w-full max-w-md p-6 bg-[var(--color-cardBg)] rounded-2xl shadow-2xl modal-content-safe overflow-y-auto"
+        animation={{ animationInitiale: 'slideUp' }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Tag size={22} className="text-[var(--color-primary)]" />
+            <h3 className="text-xl font-bold text-[var(--color-textPrimary)]">
+              Nouvelle catégorie de service
+            </h3>
+          </div>
+          <button onClick={onClose} className="text-[var(--color-textSecondary)] hover:text-[var(--color-textPrimary)]">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Nom *</label>
+            <input
+              type="text"
+              value={form.nom}
+              onChange={(e) => setForm({ ...form, nom: e.target.value })}
+              placeholder="ex: Consulting, Audit, Formation..."
+              className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              rows={2}
+              placeholder="Description de la catégorie"
+              className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-2">Couleur</label>
+            <div className="flex flex-wrap gap-2">
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setForm({ ...form, couleur: c })}
+                  className={`w-10 h-10 rounded-full border-2 transition ${
+                    form.couleur === c ? 'border-[var(--color-primary)] scale-110' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-borderColor)]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`px-4 py-2 rounded-xl text-white flex items-center gap-2 ${
+                loading ? 'bg-[var(--color-borderColor)] cursor-not-allowed opacity-60' : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]'
+              }`}
+            >
+              {loading ? 'Création...' : <><Save size={16} /> Créer</>}
+            </button>
+          </div>
+        </form>
+      </MotionBox>
+    </MotionBox>
+  );
+};
+
+export default CategoryQuickAddService;

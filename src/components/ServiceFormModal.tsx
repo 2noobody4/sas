@@ -1,0 +1,430 @@
+// ============================================================
+// SERVICE FORM MODAL — Création/Édition de service
+// Version V6 — Validation renforcée + prix 0 autorisé
+// ============================================================
+
+import React, { useState, useEffect } from 'react';
+import { MotionBox } from './MotionBox';
+import { ImageUploader } from './ImageUploader';
+import { CategoryQuickAddService } from './CategoryQuickAddService';
+import { useCreateService, useUpdateService, useService } from '../hooks/useServices';
+import { useAttributsService } from '../hooks/useAttributsService';
+import { useCategoriesService } from '../hooks/useCategoriesService';
+import { ServiceFormData, ModePaiementService } from '../types/services';
+import { X, Save, Plus, Briefcase, DollarSign, Clock } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
+
+interface ServiceFormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+  serviceId?: string;
+}
+
+const MODES_PAIEMENT: { value: ModePaiementService; label: string }[] = [
+  { value: 'forfait', label: 'Prix fixe (forfait)' },
+  { value: 'horaire', label: 'Prix à l\'heure' },
+  { value: 'les_deux', label: 'Forfait + Horaire' },
+];
+
+export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  serviceId,
+}) => {
+  const isEdit = !!serviceId;
+  const { data: service } = useService(serviceId);
+  const { data: attributs = [] } = useAttributsService();
+  const { data: categoriesService = [] } = useCategoriesService();
+  const createMutation = useCreateService();
+  const updateMutation = useUpdateService();
+  const { success, error: toastError } = useToast();
+
+  const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  const [form, setForm] = useState<ServiceFormData>({
+    nom: '',
+    disponible: true,
+    description: '',
+    prix: 0,
+    prix_horaire: 0,
+    duree_estimee_heures: 1,
+    mode_paiement: 'forfait',
+    informations_requises: [],
+    image_url: '',
+    images: [],
+    categorie_service_id: '',
+    duree: '',
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isEdit && service) {
+      const serviceImages = service.images && service.images.length > 0
+        ? service.images
+        : (service.image_url ? [service.image_url] : []);
+
+      setForm({
+        nom: service.nom,
+        disponible: service.disponible,
+        description: service.description || '',
+        prix: service.prix || 0,
+        prix_horaire: service.prix_horaire || 0,
+        duree_estimee_heures: service.duree_estimee_heures || 1,
+        mode_paiement: service.mode_paiement || 'forfait',
+        informations_requises: service.informations_requises || [],
+        image_url: service.image_url || '',
+        images: serviceImages,
+        categorie_service_id: service.categorie_service_id || '',
+        duree: service.duree || '',
+      });
+      setImages(serviceImages);
+    } else if (!isEdit) {
+      setForm({
+        nom: '',
+        disponible: true,
+        description: '',
+        prix: 0,
+        prix_horaire: 0,
+        duree_estimee_heures: 1,
+        mode_paiement: 'forfait',
+        informations_requises: [],
+        image_url: '',
+        images: [],
+        categorie_service_id: '',
+        duree: '',
+      });
+      setImages([]);
+    }
+  }, [isOpen, isEdit, service]);
+
+  if (!isOpen) return null;
+
+  const toggleAttribut = (id: string) => {
+    setForm((prev) => ({
+      ...prev,
+      informations_requises: prev.informations_requises.includes(id)
+        ? prev.informations_requises.filter((x) => x !== id)
+        : [...prev.informations_requises, id],
+    }));
+  };
+
+  // ✅ Validation centralisée
+  const validate = (): string | null => {
+    if (!form.nom.trim()) return 'Le nom est obligatoire';
+
+    const mode = form.mode_paiement || 'forfait';
+    const prixForfait = form.prix ?? 0;
+    const prixHoraire = form.prix_horaire ?? 0;
+
+    // Prix négatifs interdits
+    if (prixForfait < 0) return 'Le prix forfait ne peut pas être négatif';
+    if (prixHoraire < 0) return 'Le prix horaire ne peut pas être négatif';
+    if ((form.duree_estimee_heures ?? 0) < 0) return 'La durée estimée ne peut pas être négative';
+
+    // Au moins un prix > 0 selon le mode
+    if (mode === 'forfait' && prixForfait <= 0) {
+      return 'Le prix forfait doit être supérieur à 0';
+    }
+    if (mode === 'horaire' && prixHoraire <= 0) {
+      return 'Le prix horaire doit être supérieur à 0';
+    }
+    if (mode === 'les_deux' && prixForfait <= 0 && prixHoraire <= 0) {
+      return 'Renseignez au moins un prix (forfait ou horaire)';
+    }
+
+    // ⭐ FIX : empêche d'enregistrer un service avec une image jamais envoyée
+    // (URL provisoire "local://..." qui ne s'afficherait jamais)
+    if (images.some((img) => img.startsWith('local://'))) {
+      return 'Une ou plusieurs images sont en attente d\'envoi. Vérifiez votre connexion et réessayez avant d\'enregistrer.';
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const error = validate();
+    if (error) {
+      toastError(error);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data: ServiceFormData = {
+        ...form,
+        image_url: images[0] || '',
+        images: images,
+      };
+      if (isEdit && serviceId) {
+        await updateMutation.mutateAsync({ id: serviceId, data });
+      } else {
+        await createMutation.mutateAsync(data);
+      }
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      toastError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showPrixForfait = form.mode_paiement === 'forfait' || form.mode_paiement === 'les_deux';
+  const showPrixHoraire = form.mode_paiement === 'horaire' || form.mode_paiement === 'les_deux';
+
+  return (
+    <MotionBox
+      as="div"
+      className="fixed inset-0 bg-black/60 flex items-start sm:items-center justify-center z-[150] modal-overlay-safe"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      animation={{ animationInitiale: 'fadeIn' }}
+    >
+      <MotionBox
+        as="div"
+        type="card"
+        variant="xlarge"
+        className="w-full max-w-3xl modal-content-safe my-auto flex flex-col bg-[var(--color-cardBg)] rounded-2xl shadow-2xl overflow-hidden"
+        style={{ proprietes: { padding: 0 } as any }}
+        animation={{ animationInitiale: 'slideUp' }}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-borderColor)] bg-[var(--color-secondary)] flex-shrink-0">
+          <h3 className="text-xl font-bold text-[var(--color-textPrimary)] flex items-center gap-2">
+            <Briefcase size={22} className="text-[var(--color-primary)]" />
+            {isEdit ? 'Modifier le service' : 'Nouveau service'}
+          </h3>
+          <button onClick={onClose} className="text-[var(--color-textSecondary)] hover:text-[var(--color-textPrimary)]">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Nom *</label>
+              <input
+                type="text"
+                value={form.nom}
+                onChange={(e) => setForm({ ...form, nom: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                required
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Catégorie de service</label>
+              <div className="flex gap-2">
+                <select
+                  value={form.categorie_service_id}
+                  onChange={(e) => setForm({ ...form, categorie_service_id: e.target.value })}
+                  className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                >
+                  <option value="">Sans catégorie</option>
+                  {categoriesService.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nom}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(true)}
+                  className="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] flex items-center gap-1"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-2">Mode de paiement *</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {MODES_PAIEMENT.map((m) => {
+                  const isSelected = form.mode_paiement === m.value;
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, mode_paiement: m.value })}
+                      className={`p-3 rounded-xl border-2 text-left transition ${
+                        isSelected
+                          ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                          : 'border-[var(--color-borderColor)] hover:border-[var(--color-primary)]'
+                      }`}
+                    >
+                      <span className="font-medium text-sm text-[var(--color-textPrimary)]">
+                        {m.value === 'forfait' && '💰 '}
+                        {m.value === 'horaire' && '⏱️ '}
+                        {m.value === 'les_deux' && '💰⏱️ '}
+                        {m.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className={showPrixHoraire ? '' : 'md:col-span-2'}>
+              <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Durée estimée (heures)</label>
+              <input
+                type="number"
+                step="0.5"
+                min={0}
+                value={form.duree_estimee_heures}
+                onChange={(e) => setForm({ ...form, duree_estimee_heures: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+              />
+            </div>
+
+            {showPrixForfait && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">
+                  <DollarSign size={14} className="inline mr-1" />
+                  Prix forfait (FCFA) *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={form.prix}
+                  onChange={(e) => setForm({ ...form, prix: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+            )}
+
+            {showPrixHoraire && (
+              <div className={showPrixForfait ? '' : 'md:col-span-2'}>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">
+                  <Clock size={14} className="inline mr-1" />
+                  Prix à l'heure (FCFA/h) *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={form.prix_horaire}
+                  onChange={(e) => setForm({ ...form, prix_horaire: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+                {form.duree_estimee_heures && (form.prix_horaire || 0) > 0 && (
+                  <p className="text-xs text-[var(--color-textSecondary)] mt-1">
+                    Total estimé : <b className="text-[var(--color-primary)]">
+                      {((form.prix_horaire || 0) * (form.duree_estimee_heures || 0)).toLocaleString()} FCFA
+                    </b> pour {form.duree_estimee_heures}h
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="md:col-span-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.disponible}
+                onChange={(e) => setForm({ ...form, disponible: e.target.checked })}
+                className="accent-[var(--color-primary)]"
+              />
+              <label className="text-sm text-[var(--color-textPrimary)]">Service disponible</label>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Description *</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                required
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[var(--color-textPrimary)]">
+                Images ({images.length}/5)
+              </label>
+              <ImageUploader
+                images={images}
+                onChange={setImages}
+                max={5}
+                bucket="services"
+              />
+              <p className="text-xs text-[var(--color-textSecondary)] mt-1">
+                Vous pouvez ajouter jusqu'à 5 images. La première sera l'image principale.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-[var(--color-textPrimary)] mb-2">
+                Informations requises ({form.informations_requises.length} sélectionné{form.informations_requises.length > 1 ? 's' : ''})
+              </label>
+              {attributs.length === 0 ? (
+                <p className="text-sm text-[var(--color-textSecondary)] p-3 rounded-xl bg-[var(--color-secondary)]">
+                  Aucun attribut disponible.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                  {attributs.map((attr) => {
+                    const checked = form.informations_requises.includes(attr.id);
+                    return (
+                      <label
+                        key={attr.id}
+                        className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition ${
+                          checked
+                            ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                            : 'border-[var(--color-borderColor)] hover:bg-[var(--color-secondary)]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleAttribut(attr.id)}
+                          className="accent-[var(--color-primary)]"
+                        />
+                        <span className="text-sm text-[var(--color-textPrimary)]">
+                          {attr.nom}
+                          {attr.obligatoire && <span className="text-[var(--color-danger)]"> *</span>}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </form>
+
+        <div className="flex justify-end gap-3 px-6 py-3 border-t border-[var(--color-borderColor)] bg-[var(--color-secondary)] flex-shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className={`px-4 py-2 rounded-xl text-white flex items-center gap-2 ${
+              loading
+                ? 'bg-[var(--color-borderColor)] cursor-not-allowed opacity-60'
+                : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]'
+            }`}
+          >
+            {loading ? 'Enregistrement...' : <><Save size={16} /> {isEdit ? 'Mettre à jour' : 'Créer'}</>}
+          </button>
+        </div>
+      </MotionBox>
+
+      <CategoryQuickAddService
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        onSuccess={(id) => setForm({ ...form, categorie_service_id: id })}
+      />
+    </MotionBox>
+  );
+};
+
+export default ServiceFormModal;

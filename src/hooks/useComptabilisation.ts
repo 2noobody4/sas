@@ -1,0 +1,641 @@
+/**
+ * useComptabilisation – Hooks pour la comptabilisation des opérations
+ * Compatible React 16.14
+ */
+
+import { useMutation, useQueryClient } from 'react-query';
+import { supabase } from '../lib/supabaseClient';
+import { useToast } from './useToast';
+import { useOfflineMutation } from './useOfflineMutation';
+import { assertComptesDistincts } from '../utils/comptabiliteValidation';
+
+interface ComptabiliserVenteParams {
+  venteId: string;
+  montant: number;
+  compteDebitId: string;
+  compteCreditId: string;
+  moyenPaiement: string;
+  sessionId: string;
+  userId: string;
+}
+
+// ============================================================
+// COMPTABILISER UNE VENTE
+// ============================================================
+
+export const useComptabiliserVente = () => {
+  const queryClient = useQueryClient();
+  const { success, error: toastError } = useToast();
+
+  const mutationFn = async (params: ComptabiliserVenteParams): Promise<any> => {
+    const { 
+      venteId, 
+      montant, 
+      compteDebitId, 
+      compteCreditId, 
+      moyenPaiement, 
+      sessionId, 
+      userId 
+    } = params;
+
+    if (!compteDebitId || !compteCreditId) {
+      throw new Error('Les comptes débit et crédit sont obligatoires');
+    }
+    assertComptesDistincts(compteDebitId, compteCreditId);
+
+    const libelle = `Vente n°${venteId.slice(0, 8)} - ${moyenPaiement} - Session ${sessionId.slice(0, 6)}`;
+
+    // 1. Créer la transaction comptable
+    const { data: inserted, error } = await supabase
+      .from('transactions_comptables')
+      .insert([{
+        date_transaction: new Date().toISOString(),
+        libelle,
+        montant,
+        compte_debit_id: compteDebitId,
+        compte_credit_id: compteCreditId,
+        reference: venteId,
+        type: 'vente',
+        user_id: userId,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // 2. Mettre à jour les soldes des comptes
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteDebitId, 
+      p_montant: montant, 
+      p_sens: 'debit' 
+    });
+
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteCreditId, 
+      p_montant: montant, 
+      p_sens: 'credit' 
+    });
+
+    // 3. Lier la transaction à la vente
+    await supabase
+      .from('ventes')
+      .update({ transaction_id: inserted.id })
+      .eq('id', venteId);
+
+    return inserted;
+  };
+
+  return useOfflineMutation(
+    {
+      mutationFn,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['transactions_comptables'] });
+        queryClient.invalidateQueries({ queryKey: ['comptes'] });
+        queryClient.invalidateQueries({ queryKey: ['ventes'] });
+      },
+      onError: (err: any) => {
+        console.error('[useComptabiliserVente] Erreur:', err);
+        toastError(err.message || 'Erreur lors de la comptabilisation');
+      },
+    },
+    '/api/transactions_comptables',
+    'POST'
+  );
+};
+
+// ============================================================
+// COMPTABILISER UNE CHARGE
+// ============================================================
+
+interface ComptabiliserChargeParams {
+  saisieId: string;
+  montant: number;
+  compteDebitId: string;
+  compteCreditId: string;
+  type: 'depense' | 'salaire' | 'ajustement' | 'autre' | 'facture_client' | 'facture_fournisseur';
+  libelle: string;
+  userId: string;
+  // 🔧 Table d'origine à laquelle relier la transaction créée (colonne
+  // `transaction_id`). Par défaut `saisies_comptables` (saisie simplifiée),
+  // mais d'autres modules (ex. RH → `fiches_paie`) réutilisent ce même
+  // hook générique et doivent pouvoir préciser leur propre table.
+  sourceTable?: 'saisies_comptables' | 'fiches_paie';
+}
+
+export const useComptabiliserCharge = () => {
+  const queryClient = useQueryClient();
+  const { success, error: toastError } = useToast();
+
+  const mutationFn = async (params: ComptabiliserChargeParams): Promise<any> => {
+    const { saisieId, montant, compteDebitId, compteCreditId, type, libelle, userId, sourceTable } = params;
+
+    if (!compteDebitId || !compteCreditId) {
+      throw new Error('Les comptes débit et crédit sont obligatoires');
+    }
+    assertComptesDistincts(compteDebitId, compteCreditId);
+    if (!montant || montant <= 0) {
+      throw new Error('Le montant à comptabiliser doit être supérieur à 0');
+    }
+
+    // On conserve le type réel (facture_client / facture_fournisseur inclus)
+    // au lieu de tout réduire à 'depense', pour que les rapports
+    // (compte de résultat, journal) puissent distinguer les opérations.
+    const transactionType = type;
+
+    const { data: inserted, error } = await supabase
+      .from('transactions_comptables')
+      .insert([{
+        date_transaction: new Date().toISOString(),
+        libelle: `${libelle} - ${type}`,
+        montant,
+        compte_debit_id: compteDebitId,
+        compte_credit_id: compteCreditId,
+        reference: saisieId,
+        type: transactionType,
+        user_id: userId,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteDebitId, 
+      p_montant: montant, 
+      p_sens: 'debit' 
+    });
+
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteCreditId, 
+      p_montant: montant, 
+      p_sens: 'credit' 
+    });
+
+    // 🔧 Relier la transaction à sa table d'origine (bug corrigé : avant,
+    // cette mise à jour ciblait toujours `saisies_comptables`, même pour
+    // les fiches de paie, donc `fiches_paie.transaction_id` n'était
+    // jamais renseigné et la fiche restait "non liée").
+    await supabase
+      .from(sourceTable || 'saisies_comptables')
+      .update({ transaction_id: inserted.id })
+      .eq('id', saisieId);
+
+    return inserted;
+  };
+
+  return useOfflineMutation(
+    {
+      mutationFn,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['transactions_comptables'] });
+        queryClient.invalidateQueries({ queryKey: ['comptes'] });
+        queryClient.invalidateQueries({ queryKey: ['saisies_comptables'] });
+      },
+      onError: (err: any) => {
+        console.error('[useComptabiliserCharge] Erreur:', err);
+        toastError(err.message || 'Erreur lors de la comptabilisation');
+      },
+    },
+    '/api/transactions_comptables',
+    'POST'
+  );
+};
+
+// ============================================================
+// COMPTABILISER UN RÉAPPROVISIONNEMENT
+// ============================================================
+
+interface ComptabiliserAchatParams {
+  mouvementId: string;
+  montant: number;
+  compteDebitId: string;
+  compteCreditId: string;
+  produitNom: string;
+  userId: string;
+  fournisseurId?: string;
+}
+
+export const useComptabiliserAchat = () => {
+  const queryClient = useQueryClient();
+  const { success, error: toastError } = useToast();
+
+  const mutationFn = async (params: ComptabiliserAchatParams): Promise<any> => {
+    const { mouvementId, montant, compteDebitId, compteCreditId, produitNom, userId, fournisseurId } = params;
+
+    if (!compteDebitId || !compteCreditId) {
+      throw new Error('Les comptes débit et crédit sont obligatoires');
+    }
+    assertComptesDistincts(compteDebitId, compteCreditId);
+
+    const libelle = `Achat ${produitNom}${fournisseurId ? ` - Fournisseur ${fournisseurId.slice(0, 6)}` : ''}`;
+
+    const { data: inserted, error } = await supabase
+      .from('transactions_comptables')
+      .insert([{
+        date_transaction: new Date().toISOString(),
+        libelle,
+        montant,
+        compte_debit_id: compteDebitId,
+        compte_credit_id: compteCreditId,
+        reference: mouvementId,
+        type: 'achat',
+        user_id: userId,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteDebitId, 
+      p_montant: montant, 
+      p_sens: 'debit' 
+    });
+
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteCreditId, 
+      p_montant: montant, 
+      p_sens: 'credit' 
+    });
+
+    await supabase
+      .from('mouvements_stock')
+      .update({ transaction_id: inserted.id })
+      .eq('id', mouvementId);
+
+    return inserted;
+  };
+
+  return useOfflineMutation(
+    {
+      mutationFn,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['transactions_comptables'] });
+        queryClient.invalidateQueries({ queryKey: ['comptes'] });
+        queryClient.invalidateQueries({ queryKey: ['mouvements'] });
+      },
+      onError: (err: any) => {
+        console.error('[useComptabiliserAchat] Erreur:', err);
+        toastError(err.message || 'Erreur lors de la comptabilisation');
+      },
+    },
+    '/api/transactions_comptables',
+    'POST'
+  );
+};
+
+// ============================================================
+// COMPTABILISER UNE FACTURE
+// ============================================================
+
+interface ComptabiliserFactureParams {
+  factureId: string;
+  montant: number;
+  compteDebitId: string;
+  compteCreditId: string;
+  type: 'emise' | 'recue';
+  libelle: string;
+  userId: string;
+  clientId?: string;
+  fournisseurId?: string;
+}
+
+export const useComptabiliserFacture = () => {
+  const queryClient = useQueryClient();
+  const { success, error: toastError } = useToast();
+
+  const mutationFn = async (params: ComptabiliserFactureParams): Promise<any> => {
+    const { 
+      factureId, 
+      montant, 
+      compteDebitId, 
+      compteCreditId, 
+      type, 
+      libelle, 
+      userId,
+      clientId,
+      fournisseurId
+    } = params;
+
+    if (!compteDebitId || !compteCreditId) {
+      throw new Error('Les comptes débit et crédit sont obligatoires');
+    }
+    assertComptesDistincts(compteDebitId, compteCreditId);
+
+    // Déterminer le type de transaction
+    const transactionType = type === 'emise' ? 'facture_client' : 'facture_fournisseur';
+    const libelleComplet = `${type === 'emise' ? 'Facture client' : 'Facture fournisseur'} ${libelle}`;
+
+    // 1. Créer la transaction comptable
+    const { data: inserted, error } = await supabase
+      .from('transactions_comptables')
+      .insert([{
+        date_transaction: new Date().toISOString(),
+        libelle: libelleComplet,
+        montant,
+        compte_debit_id: compteDebitId,
+        compte_credit_id: compteCreditId,
+        reference: factureId,
+        type: transactionType,
+        user_id: userId,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // 2. Mettre à jour les soldes des comptes
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteDebitId, 
+      p_montant: montant, 
+      p_sens: 'debit' 
+    });
+
+    await supabase.rpc('update_compte_solde', { 
+      p_compte_id: compteCreditId, 
+      p_montant: montant, 
+      p_sens: 'credit' 
+    });
+
+    // 3. Lier la transaction à la facture
+    await supabase
+      .from('factures')
+      .update({ transaction_id: inserted.id })
+      .eq('id', factureId);
+
+    return inserted;
+  };
+
+  return useOfflineMutation(
+    {
+      mutationFn,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['transactions_comptables'] });
+        queryClient.invalidateQueries({ queryKey: ['comptes'] });
+        queryClient.invalidateQueries({ queryKey: ['factures'] });
+      },
+      onError: (err: any) => {
+        console.error('[useComptabiliserFacture] Erreur:', err);
+        toastError(err.message || 'Erreur lors de la comptabilisation');
+      },
+    },
+    '/api/transactions_comptables',
+    'POST'
+  );
+};
+
+// ============================================================
+// COMPTABILISER UNE DEMANDE DE SERVICE
+// ============================================================
+
+interface ComptabiliserDemandeServiceParams {
+  demandeServiceId: string;
+  montant: number;
+  compteDebitId: string;
+  compteCreditId: string;
+  libelle: string;
+  userId: string;
+}
+
+export const useComptabiliserDemandeService = () => {
+  const queryClient = useQueryClient();
+  const { error: toastError } = useToast();
+
+  const mutationFn = async (params: ComptabiliserDemandeServiceParams): Promise<any> => {
+    const { demandeServiceId, montant, compteDebitId, compteCreditId, libelle, userId } = params;
+
+    if (!compteDebitId || !compteCreditId) {
+      throw new Error('Les comptes débit et crédit sont obligatoires');
+    }
+    assertComptesDistincts(compteDebitId, compteCreditId);
+    if (!montant || montant <= 0) {
+      throw new Error('Le montant à comptabiliser doit être supérieur à 0');
+    }
+
+    const { data: inserted, error } = await supabase
+      .from('transactions_comptables')
+      .insert([{
+        date_transaction: new Date().toISOString(),
+        libelle,
+        montant,
+        compte_debit_id: compteDebitId,
+        compte_credit_id: compteCreditId,
+        reference: demandeServiceId,
+        type: 'service',
+        user_id: userId,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await supabase.rpc('update_compte_solde', {
+      p_compte_id: compteDebitId,
+      p_montant: montant,
+      p_sens: 'debit',
+    });
+
+    await supabase.rpc('update_compte_solde', {
+      p_compte_id: compteCreditId,
+      p_montant: montant,
+      p_sens: 'credit',
+    });
+
+    await supabase
+      .from('demandes_service')
+      .update({ transaction_id: inserted.id })
+      .eq('id', demandeServiceId);
+
+    return inserted;
+  };
+
+  return useOfflineMutation(
+    {
+      mutationFn,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['transactions_comptables'] });
+        queryClient.invalidateQueries({ queryKey: ['comptes'] });
+        queryClient.invalidateQueries('demandes_service');
+      },
+      onError: (err: any) => {
+        console.error('[useComptabiliserDemandeService] Erreur:', err);
+        toastError(err.message || 'Erreur lors de la comptabilisation');
+      },
+    },
+    '/api/transactions_comptables',
+    'POST'
+  );
+};
+
+// ============================================================
+// COMPTABILISER LE SOLDE D'UNE DEMANDE DE SERVICE (mode "acompte")
+// ------------------------------------------------------------
+// Quand un client règle un acompte, l'acompte est d'abord comptabilisé
+// en AVANCE REÇUE (compte 4191 - passif), pas en produit : le service
+// n'est pas encore rendu (règle SYSCOHADA de séparation des exercices/
+// rattachement du produit à la prestation effectuée).
+//
+// Une fois le service livré (statut = 'terminee'), on comptabilise ici
+// en une seule opération :
+//  1) Le SOLDE encaissé   : Débit Caisse/Banque   / Crédit 706-701 (produit)
+//  2) L'apurement de l'AVANCE déjà reçue : Débit 4191 (avance) / Crédit 706-701
+// Le produit total (prix_convenu) n'est donc reconnu qu'à la livraison,
+// conformément au plan SYSCOHADA.
+// ============================================================
+
+interface ComptabiliserSoldeDemandeServiceParams {
+  demandeServiceId: string;
+  montantSolde: number;          // prix_convenu - montant_acompte (peut être 0)
+  montantAcompte: number;        // montant déjà reçu en avance (compte 4191)
+  compteCaisseBanqueId: string;  // 571000 Caisse ou 521000 Banque
+  compteAvanceId: string;        // 419100 Clients, avances et acomptes reçus
+  compteProduitId: string;       // 706000 Prestations de services ou 701000 Ventes
+  libelle: string;
+  userId: string;
+}
+
+export const useComptabiliserSoldeDemandeService = () => {
+  const queryClient = useQueryClient();
+  const { error: toastError } = useToast();
+
+  const mutationFn = async (params: ComptabiliserSoldeDemandeServiceParams): Promise<any> => {
+    const {
+      demandeServiceId,
+      montantSolde,
+      montantAcompte,
+      compteCaisseBanqueId,
+      compteAvanceId,
+      compteProduitId,
+      libelle,
+      userId,
+    } = params;
+
+    if (!compteCaisseBanqueId || !compteProduitId) {
+      throw new Error('Les comptes caisse/banque et produit sont obligatoires');
+    }
+    if (montantAcompte > 0 && !compteAvanceId) {
+      throw new Error('Le compte d\'avances reçues (4191) est obligatoire pour apurer l\'acompte');
+    }
+    if (montantSolde <= 0 && montantAcompte <= 0) {
+      throw new Error('Aucun montant à comptabiliser');
+    }
+    // 🔧 Deux écritures indépendantes ici : chaque paire débit/crédit doit
+    // être contrôlée séparément.
+    if (montantSolde > 0) {
+      assertComptesDistincts(compteCaisseBanqueId, compteProduitId);
+    }
+    if (montantAcompte > 0) {
+      assertComptesDistincts(compteAvanceId, compteProduitId);
+    }
+
+    let derniereTransaction: any = null;
+
+    // 1) Encaissement du solde restant (s'il y en a un)
+    if (montantSolde > 0) {
+      const { data: soldeInserted, error: soldeError } = await supabase
+        .from('transactions_comptables')
+        .insert([{
+          date_transaction: new Date().toISOString(),
+          libelle: `${libelle} — solde`,
+          montant: montantSolde,
+          compte_debit_id: compteCaisseBanqueId,
+          compte_credit_id: compteProduitId,
+          reference: demandeServiceId,
+          type: 'service',
+          user_id: userId,
+        }])
+        .select()
+        .single();
+
+      if (soldeError) throw soldeError;
+
+      await supabase.rpc('update_compte_solde', {
+        p_compte_id: compteCaisseBanqueId,
+        p_montant: montantSolde,
+        p_sens: 'debit',
+      });
+      await supabase.rpc('update_compte_solde', {
+        p_compte_id: compteProduitId,
+        p_montant: montantSolde,
+        p_sens: 'credit',
+      });
+
+      derniereTransaction = soldeInserted;
+    }
+
+    // 2) Apurement de l'avance déjà reçue : elle devient enfin du produit
+    if (montantAcompte > 0) {
+      const { data: apurementInserted, error: apurementError } = await supabase
+        .from('transactions_comptables')
+        .insert([{
+          date_transaction: new Date().toISOString(),
+          libelle: `${libelle} — apurement avance`,
+          montant: montantAcompte,
+          compte_debit_id: compteAvanceId,
+          compte_credit_id: compteProduitId,
+          reference: demandeServiceId,
+          type: 'service',
+          user_id: userId,
+        }])
+        .select()
+        .single();
+
+      if (apurementError) throw apurementError;
+
+      await supabase.rpc('update_compte_solde', {
+        p_compte_id: compteAvanceId,
+        p_montant: montantAcompte,
+        p_sens: 'debit',
+      });
+      await supabase.rpc('update_compte_solde', {
+        p_compte_id: compteProduitId,
+        p_montant: montantAcompte,
+        p_sens: 'credit',
+      });
+
+      derniereTransaction = derniereTransaction || apurementInserted;
+    }
+
+    // 3) Lier la demande de service à l'écriture de solde
+    await supabase
+      .from('demandes_service')
+      .update({ transaction_solde_id: derniereTransaction.id })
+      .eq('id', demandeServiceId);
+
+    return derniereTransaction;
+  };
+
+  return useOfflineMutation(
+    {
+      mutationFn,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['transactions_comptables'] });
+        queryClient.invalidateQueries({ queryKey: ['comptes'] });
+        queryClient.invalidateQueries('demandes_service');
+      },
+      onError: (err: any) => {
+        console.error('[useComptabiliserSoldeDemandeService] Erreur:', err);
+        toastError(err.message || 'Erreur lors de la comptabilisation du solde');
+      },
+    },
+    '/api/transactions_comptables',
+    'POST'
+  );
+};
+
+// ============================================================
+// EXPORT PAR DÉFAUT — regroupe l'ensemble des hooks de comptabilisation
+// (auparavant incomplet : seuls 3 des 6 hooks étaient exportés, en plein
+// milieu du fichier, ce qui pouvait laisser croire que les hooks
+// "facture", "demande de service" et "solde de demande de service"
+// n'existaient pas encore).
+// ============================================================
+
+export default {
+  useComptabiliserVente,
+  useComptabiliserCharge,
+  useComptabiliserAchat,
+  useComptabiliserFacture,
+  useComptabiliserDemandeService,
+  useComptabiliserSoldeDemandeService,
+};

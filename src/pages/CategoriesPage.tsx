@@ -1,0 +1,272 @@
+import { CachedImage } from "../components/CachedImage";
+import React, { useState, useEffect } from 'react';
+import { MotionBox } from '../components/MotionBox';
+import { ColorPicker } from '../components/ColorPicker';
+import { ImageUploader } from '../components/ImageUploader';
+import {
+  useCategories,
+  useCreateCategorie,
+  useUpdateCategorie,
+  useDeleteCategorie
+} from '../hooks/useProduits';
+import { Categorie } from '../types/stock';
+import { Plus, Edit, Trash2, Tag, X } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
+
+export const CategoriesPage: React.FC = () => {
+  const { data: categories = [], isLoading, refetch } = useCategories();
+  const createMutation = useCreateCategorie();
+  const updateMutation = useUpdateCategorie();
+  const deleteMutation = useDeleteCategorie();
+  const { success, error: toastError } = useToast();
+
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Categorie | null>(null);
+  const [form, setForm] = useState({ nom: '', description: '', couleur: '#1E3A5F', image_url: '' });
+  const [errors, setErrors] = useState<{ nom?: string }>({});
+  const [touched, setTouched] = useState<{ nom?: boolean }>({});
+
+  const validate = () => {
+    const newErrors: { nom?: string } = {};
+    if (!form.nom || form.nom.trim() === '') {
+      newErrors.nom = 'Le nom est obligatoire';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleBlur = (field: 'nom') => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    validate();
+  };
+
+  const isFormValid = () => {
+    const nomValid = form.nom && form.nom.trim() !== '';
+    return nomValid;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) {
+      toastError('Veuillez corriger les erreurs');
+      return;
+    }
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, data: form });
+      } else {
+        await createMutation.mutateAsync(form);
+      }
+      setShowForm(false);
+      setEditing(null);
+      setForm({ nom: '', description: '', couleur: '#1E3A5F', image_url: '' });
+      setErrors({});
+      setTouched({});
+      refetch();
+      success(editing ? 'Catégorie mise à jour ✅' : 'Catégorie créée ✅');
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleEdit = (cat: Categorie) => {
+    setEditing(cat);
+    setForm({
+      nom: cat.nom,
+      description: cat.description || '',
+      couleur: cat.couleur || '#1E3A5F',
+      image_url: cat.image_url || '',
+    });
+    setErrors({});
+    setTouched({});
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Voulez-vous vraiment supprimer cette catégorie ?')) {
+      await deleteMutation.mutateAsync(id);
+      refetch();
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-6 text-center text-[var(--color-textSecondary)]">Chargement...</div>;
+  }
+
+  return (
+    <MotionBox as="div" type="page" variant="default" className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-textPrimary)] flex items-center gap-2">
+            🏷️ Catégories
+          </h1>
+          <p className="text-sm text-[var(--color-textSecondary)]">Gérez les catégories de vos produits</p>
+        </div>
+        <button
+          onClick={() => { setEditing(null); setForm({ nom: '', description: '', couleur: '#1E3A5F', image_url: '' }); setErrors({}); setTouched({}); setShowForm(true); }}
+          className="px-4 py-2 rounded-xl bg-[var(--color-primary)] text-white flex items-center gap-2"
+        >
+          <Plus size={18} /> Nouvelle catégorie
+        </button>
+      </div>
+
+      {categories.length === 0 ? (
+        <MotionBox type="card" variant="default" className="p-8 text-center text-[var(--color-textSecondary)]">
+          Aucune catégorie. Créez votre première catégorie !
+        </MotionBox>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {categories.map((cat: Categorie) => {
+            const imgKey = cat.image_url || 'no-image';
+            return (
+              <MotionBox
+                key={cat.id}
+                type="card"
+                variant="default"
+                className="p-4 flex items-center justify-between hover:shadow-md transition"
+              >
+                <div className="flex items-center gap-3">
+                  {cat.image_url ? (
+                    <img
+                      key={imgKey}
+                      src={cat.image_url}
+                      alt={cat.nom}
+                      className="w-10 h-10 rounded object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white"
+                      style={{ backgroundColor: cat.couleur || 'var(--color-primary)' }}
+                    >
+                      <Tag size={20} />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-[var(--color-textPrimary)]">{cat.nom}</p>
+                    <p className="text-sm text-[var(--color-textSecondary)]">
+                      {cat.description || 'Aucune description'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleEdit(cat)}
+                    className="p-1.5 rounded hover:bg-[var(--color-secondary)] text-[var(--color-textSecondary)]"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cat.id)}
+                    className="p-1.5 rounded hover:bg-red-50 text-[var(--color-danger)]"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </MotionBox>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal */}
+      {showForm && (
+        <MotionBox
+          as="div"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-overlay-safe"
+          onClick={(e) => e.target === e.currentTarget && setShowForm(false)}
+          animation={{ animationInitiale: 'fadeIn' }}
+        >
+          <MotionBox
+            as="div"
+            type="card"
+            variant="elevated"
+            className="w-full max-w-md p-6 modal-content-safe overflow-y-auto"
+            animation={{ animationInitiale: 'slideUp' }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-[var(--color-textPrimary)]">
+                {editing ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
+              </h3>
+              <button onClick={() => setShowForm(false)} className="text-[var(--color-textSecondary)]">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">
+                  Nom *
+                  {touched.nom && errors.nom && (
+                    <span className="ml-2 text-sm text-[var(--color-danger)]">{errors.nom}</span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={form.nom}
+                  onChange={(e) => {
+                    setForm({ ...form, nom: e.target.value });
+                    if (touched.nom) validate();
+                  }}
+                  onBlur={() => handleBlur('nom')}
+                  required
+                  className={`w-full px-3 py-2 rounded-xl border ${
+                    touched.nom && errors.nom
+                      ? 'border-[var(--color-danger)]'
+                      : 'border-[var(--color-borderColor)]'
+                  } bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-borderColor)] bg-[var(--color-cardBg)] text-[var(--color-textPrimary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Couleur</label>
+                <ColorPicker
+                  value={form.couleur}
+                  onChange={(color) => setForm({ ...form, couleur: color })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-textPrimary)]">Image (optionnelle)</label>
+                <ImageUploader
+                  images={form.image_url ? [form.image_url] : []}
+                  onChange={(urls) => setForm({ ...form, image_url: urls[0] || '' })}
+                  max={1}
+                  bucket="logos"
+                  label="Ajouter une image (optionnelle)"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isFormValid()}
+                  className={`px-4 py-2 rounded-xl text-white ${
+                    isFormValid()
+                      ? 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]'
+                      : 'bg-[var(--color-borderColor)] cursor-not-allowed opacity-60'
+                  } transition`}
+                >
+                  {editing ? 'Mettre à jour' : 'Créer'}
+                </button>
+              </div>
+            </form>
+          </MotionBox>
+        </MotionBox>
+      )}
+    </MotionBox>
+  );
+};
+export default CategoriesPage;

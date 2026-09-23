@@ -1,0 +1,221 @@
+// ============================================================
+// FLOATING NAV — Bouton flottant Retour + Accueil + Historique
+// Version V3 — Compatible React 16
+// ============================================================
+
+import React, { useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
+import { ArrowLeft, Home, Clock, X, Trash2 } from 'lucide-react';
+import { useNavigationHistory } from '../hooks/useNavigationHistory';
+
+export const FloatingNav: React.FC = () => {
+  const history = useHistory();
+  const location = useLocation();
+  const { history: navHistory, canGoBack, goBack, clearHistory } = useNavigationHistory();
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Ne pas afficher sur la page Debug
+  if (location.pathname === '/debug') return null;
+
+  const handleBack = () => {
+    if (canGoBack) {
+      goBack(history.push);
+    } else {
+      history.goBack();
+    }
+  };
+
+  const handleHome = () => {
+    history.push('/');
+  };
+
+  return (
+    <>
+      {/* Panneau historique */}
+      {showHistory && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '140px',
+            right: '16px',
+            zIndex: 9998,
+            width: '280px',
+            maxHeight: '60vh',
+            overflow: 'auto',
+            background: '#fff',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+            border: '1px solid #e5e7eb',
+            padding: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>Historique ({navHistory.length})</span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                onClick={clearHistory}
+                style={{
+                  padding: 4,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: '#dc2626',
+                }}
+                title="Effacer l'historique"
+              >
+                <Trash2 size={14} />
+              </button>
+              <button
+                onClick={() => setShowHistory(false)}
+                style={{
+                  padding: 4,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {navHistory.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#9ca3af', padding: 8, textAlign: 'center' }}>
+                Aucun historique
+              </div>
+            ) : (
+              [...navHistory].reverse().map((path, i) => (
+                <button
+                  key={`${path}-${i}`}
+                  onClick={() => {
+                    history.push(path);
+                    setShowHistory(false);
+                  }}
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: path === location.pathname ? '#dbeafe' : 'transparent',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: '#1f2937',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {path}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Boutons flottants empilés */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '80px',
+          right: '16px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        {/* Accueil */}
+        <button
+          onClick={handleHome}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            backgroundColor: 'var(--color-primary, #1E3A5F)',
+            color: '#fff',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          }}
+          title="Accueil"
+        >
+          <Home size={20} />
+        </button>
+
+        {/* Retour */}
+        <button
+          onClick={handleBack}
+          disabled={!canGoBack}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            backgroundColor: canGoBack ? '#374151' : '#9ca3af',
+            color: '#fff',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: canGoBack ? 'pointer' : 'not-allowed',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            opacity: canGoBack ? 1 : 0.5,
+          }}
+          title="Retour"
+        >
+          <ArrowLeft size={20} />
+        </button>
+
+        {/* Historique */}
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            backgroundColor: showHistory ? '#1E3A5F' : '#fff',
+            color: showHistory ? '#fff' : '#1E3A5F',
+            border: '2px solid #1E3A5F',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            position: 'relative',
+          }}
+          title="Historique"
+        >
+          <Clock size={20} />
+          {navHistory.length > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                minWidth: 18,
+                height: 18,
+                padding: '0 4px',
+                borderRadius: 9999,
+                background: '#dc2626',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {navHistory.length > 99 ? '99+' : navHistory.length}
+            </span>
+          )}
+        </button>
+      </div>
+    </>
+  );
+};
+
+export default FloatingNav;
