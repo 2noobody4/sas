@@ -12,7 +12,6 @@ import { DemandesServicePage } from '../pages/DemandesServicePage';
 import { CommanderServicePage } from '../pages/CommanderServicePage';
 import { MesDemandesServicePage } from '../pages/MesDemandesServicePage';
 import { ServiceDetailPage } from '../pages/ServicesServiceDetailPage';
-import { ServiceDetailPublicPage } from '../pages/services';
 
 export const MANAGEMENT_SERVICES: ModuleDefinition[] = [
   {
@@ -91,18 +90,6 @@ export const MANAGEMENT_SERVICES: ModuleDefinition[] = [
 
 // ⭐ Modules client (public)
 export const CLIENT_SERVICES_MODULES: ModuleDefinition[] = [
-  {
-    id: 'service-detail-public',
-    path: '/services/:id',
-    label: 'Détail service',
-    icon: 'Briefcase',
-    description: 'Page publique de détail d\'un service',
-    roles: ['client', 'admin', 'gestionnaire'],
-    order: 102,
-    component: ServiceDetailPublicPage,
-    isManagement: false,
-    isBottomNav: false,
-  },
   {
     id: 'commander-service',
     path: '/services/:id/commander',

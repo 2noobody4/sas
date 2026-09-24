@@ -7,7 +7,6 @@ import { useToast } from '../hooks/useToast';
 import { useFormat } from '../hooks/useFormat';
 import { Search, ShoppingCart, LayoutGrid, List, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { CachedImage } from '../components/CachedImage';
 
 export const BoutiquePage: React.FC = () => {
   const { data: produits = [], isLoading } = useProduits();
@@ -132,7 +131,7 @@ export const BoutiquePage: React.FC = () => {
             <MotionBox key={produit.id} type="card" variant="default" className="overflow-hidden hover:shadow-xl transition-all duration-300">
               <div className="aspect-square bg-[var(--color-secondary)] flex items-center justify-center">
                 {produit.image_url ? (
-                  <CachedImage src={produit.image_url} alt={produit.nom} className="w-full h-full object-cover" />
+                  <img src={produit.image_url} alt={produit.nom} className="w-full h-full object-cover" />
                 ) : (
                   <div className="text-6xl opacity-20">📦</div>
                 )}
@@ -167,7 +166,7 @@ export const BoutiquePage: React.FC = () => {
             <MotionBox key={produit.id} type="card" variant="default" className="p-4 flex items-center gap-4">
               <div className="w-20 h-20 rounded-xl bg-[var(--color-secondary)] flex items-center justify-center flex-shrink-0">
                 {produit.image_url ? (
-                  <CachedImage src={produit.image_url} alt={produit.nom} className="w-full h-full object-cover rounded-xl" />
+                  <img src={produit.image_url} alt={produit.nom} className="w-full h-full object-cover rounded-xl" />
                 ) : (
                   <div className="text-3xl opacity-20">📦</div>
                 )}

@@ -31,7 +31,6 @@ import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { LoadingScreen } from './components/LoadingScreen';
 import { Sidebar } from './components/Sidebar';
 import { FloatingNav } from './components/FloatingNav';
-import RoleSwitcher from './components/RoleSwitcher';
 import { useAuth } from './hooks/useAuth';
 import { useUserModules } from './hooks/useUserModules';
 import { useSessionGuard } from './hooks/useSessionGuard';
@@ -199,7 +198,6 @@ function AppContent() {
             </p>
           </div>
         </div>
-        <RoleSwitcher />
         <FloatingNav />
       </>
     );
@@ -290,7 +288,6 @@ function AppContent() {
 
       <NotificationToast toasts={notifications.toasts} onDismiss={notifications.dismissToast} />
       <Toaster position="top-center" />
-      <RoleSwitcher />
       <FloatingNav />
     </>
   );

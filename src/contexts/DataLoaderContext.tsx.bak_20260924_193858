@@ -9,7 +9,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import localForage from 'localforage';
 import { supabase } from '../lib/supabaseClient';
-import { resolveImageUrl } from '../lib/imageStorage';
 
 // Configuration de localForage (IndexedDB)
 localForage.config({
@@ -77,28 +76,11 @@ export const DataLoaderProvider: React.FC<{ children: ReactNode }> = ({ children
   // Fonction pour récupérer une image depuis le cache ou l'URL
   const getCachedImage = async (url: string): Promise<string> => {
     if (!url) return url;
-
-    // ✅ FIX : les images pas encore envoyées vers Supabase sont stockées sous
-    // la forme 'local://<id>'. On tente de les résoudre en URL publique
-    // (upload différé si besoin) au lieu d'afficher une image cassée.
-    if (url.startsWith('local://')) {
-      try {
-        return await resolveImageUrl(url);
-      } catch {
-        return url;
-      }
-    }
-
     try {
       const cached = await localForage.getItem<string>(`img_${url}`);
       if (cached) return cached;
-    } catch {
-      // ignore
-    }
-
-    // ✅ FIX : on met réellement l'image en cache (cacheImage() existait déjà
-    // mais n'était jamais appelée depuis getCachedImage()).
-    return cacheImage(url);
+    } catch {}
+    return url;
   };
 
   // Fonction pour charger toutes les données depuis Supabase
