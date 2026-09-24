@@ -1,19 +1,37 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ============================================================
-# Point 12 — Scoping multi-magasin sur les hooks de lecture
-# comptabilité + charges + factures + sessions de caisse.
+# fix_build.sh — Corrige les erreurs de build / warnings npm
 #
-# Choix de compatibilité : un enregistrement avec magasin_id = NULL
-# est traité comme "partagé" (visible depuis tous les magasins).
-# Ça évite de casser un déploiement mono-magasin existant où
-# magasin_id n'a jamais été renseigné. Une fois que tu auras
-# backfillé magasin_id partout, tu pourras durcir en `.eq()` strict
-# (chercher les commentaires "🔧 Point 12" dans le diff).
+# Problèmes trouvés dans package.json :
 #
-# NON traité ici : useVentes() (table `ventes` n'a pas de colonne
-# magasin_id — le lien passe par session_id -> sessions_caisse.
-# magasin_id, ça demande un filtre sur jointure, plus risqué à
-# patcher à l'aveugle. À faire à part si besoin.)
+# 1) ERREUR BLOQUANTE (EOVERRIDE) :
+#    "overrides": { "ajv": "^8.12.0", "ajv-keywords": "^5.1.0" }
+#    entre en conflit avec les dependencies directes du même nom
+#    ("ajv": "^8.20.0", "ajv-keywords": "^5.1.0"). npm refuse
+#    l'install avec :
+#      npm error code EOVERRIDE
+#      npm error Override for ajv@^8.20.0 conflicts with direct dependency
+#    → Comme les versions directes suffisent déjà, le bloc
+#      "overrides" est supprimé.
+#
+# 2) WARNING (ERESOLVE peer dependency) :
+#    "vite-plugin-pwa" est dans devDependencies alors que le
+#    projet est un React 16 / react-scripts (Create React App),
+#    sans Vite nulle part (aucun vite.config, aucun import
+#    "vite-plugin-pwa" ou "VitePWA" dans src/). Ce paquet réclame
+#    un peer "vite" absent → warnings ERESOLVE en cascade
+#    (fdir, picomatch, postcss-load-config, yaml...) à chaque
+#    install. → Dépendance inutilisée, supprimée.
+#
+# 3) NETTOYAGE :
+#    "deps": "^1.0.0" dans dependencies n'est importé nulle part
+#    dans src/ (paquet npm sans rapport avec le projet, ajouté
+#    par erreur). → Supprimé.
+#
+# Ce script :
+#   - sauvegarde package.json en package.json.bak
+#   - réécrit package.json corrigé avec `cat >`
+#   - valide le JSON généré avec `python3`
 #
 # À lancer depuis la racine du projet (là où se trouve package.json)
 # ============================================================
@@ -24,409 +42,118 @@ if [ ! -f "package.json" ]; then
   exit 1
 fi
 
-for f in src/hooks/useComptabilite.ts src/hooks/useFactures.ts src/hooks/useChargesUsuelles.ts src/hooks/useSessions.ts; do
-  echo "→ Sauvegarde de $f en $f.bak"
-  cp "$f" "$f.bak"
-done
+echo "→ Sauvegarde de package.json → package.json.bak"
+cp package.json package.json.bak
 
-echo "→ Application des patchs (via python3)"
+echo "→ Écriture du package.json corrigé"
+cat > package.json << 'PKGEOF'
+{
+  "name": "app-pme",
+  "version": "3.0.0",
+  "private": true,
+  "dependencies": {
+    "@dnd-kit/core": "6.0.8",
+    "@dnd-kit/sortable": "7.0.2",
+    "@dnd-kit/utilities": "3.2.1",
+    "@hookform/resolvers": "2.9.11",
+    "@stripe/react-stripe-js": "1.16.5",
+    "@stripe/stripe-js": "1.54.2",
+    "@supabase/supabase-js": "2.38.4",
+    "@testing-library/jest-dom": "5.17.0",
+    "@testing-library/react": "12.1.5",
+    "@testing-library/user-event": "13.5.0",
+    "@types/jest": "27.5.2",
+    "@types/node": "16.18.68",
+    "@types/react": "16.14.46",
+    "@types/react-dom": "16.9.14",
+    "@types/react-router-dom": "5.3.3",
+    "@yudiel/react-qr-scanner": "1.0.0",
+    "ajv": "^8.20.0",
+    "ajv-keywords": "^5.1.0",
+    "date-fns": "2.30.0",
+    "framer-motion": "6.5.1",
+    "html5-qrcode": "^2.3.8",
+    "i18next": "23.10.0",
+    "i18next-browser-languagedetector": "7.2.0",
+    "jspdf": "^4.2.1",
+    "localforage": "^1.10.0",
+    "lucide-react": "0.263.1",
+    "react": "16.14.0",
+    "react-dom": "16.14.0",
+    "react-ga": "3.3.1",
+    "react-hook-form": "7.48.0",
+    "react-hot-toast": "2.4.1",
+    "react-i18next": "13.5.0",
+    "react-mic": "12.4.6",
+    "react-qr-code": "2.0.11",
+    "react-query": "^3.39.3",
+    "react-router-dom": "5.3.4",
+    "react-scripts": "5.0.1",
+    "recharts": "2.10.3",
+    "typescript": "4.9.5",
+    "uuid": "9.0.1",
+    "web-vitals": "2.1.4",
+    "xlsx": "^0.18.5",
+    "zod": "3.22.4",
+    "zustand": "^4.4.7"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
+PKGEOF
+
+echo "→ Validation du JSON avec python3"
 python3 << 'PYEOF'
+import json
 import sys
 
-def patch(path, replacements, label):
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read()
-    for old, new, name in replacements:
-        if new in content:
-            print(f"  • [{label}] {name} déjà appliqué, on saute.")
-            continue
-        if old not in content:
-            print(f"  ❌ [{label}] bloc '{name}' introuvable tel quel — vérifie {path} manuellement.")
-            sys.exit(1)
-        content = content.replace(old, new, 1)
-        print(f"  • [{label}] {name} patché.")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
+with open("package.json", encoding="utf-8") as f:
+    data = json.load(f)  # lève une exception si le JSON est invalide
 
-# ============================================================
-# useComptabilite.ts
-# ============================================================
-patch(
-    "src/hooks/useComptabilite.ts",
-    [
-        (
-            "import { useDataLoader } from '../contexts/DataLoaderContext';",
-            "import { useDataLoader } from '../contexts/DataLoaderContext';\n"
-            "import { useMagasinActif } from '../contexts/MagasinActifContext';",
-            "import useMagasinActif",
-        ),
-        (
-            """let _comptesMapCache: { at: number; map: Map<string, Compte> } | null = null;
+problems = []
+if "overrides" in data:
+    problems.append("le bloc 'overrides' est encore présent")
+if "deps" in data.get("dependencies", {}):
+    problems.append("'deps' est encore dans dependencies")
+if "vite-plugin-pwa" in data.get("devDependencies", {}):
+    problems.append("'vite-plugin-pwa' est encore dans devDependencies")
 
-const fetchComptesMap = async (): Promise<Map<string, Compte>> => {
-  // Petit cache mémoire (5s) pour éviter de re-fetcher tous les comptes à
-  // chaque ligne/transaction affichée dans la même fenêtre de rendu.
-  if (_comptesMapCache && Date.now() - _comptesMapCache.at < 5000) {
-    return _comptesMapCache.map;
-  }
-  const { data, error } = await supabase.from('comptes').select('*');
-  if (error) {
-    console.error('[fetchComptesMap] Erreur Supabase:', error);
-    throw error;
-  }
-  const map = new Map<string, Compte>((data || []).map((c: Compte) => [c.id, c]));
-  _comptesMapCache = { at: Date.now(), map };
-  return map;
-};""",
-            """let _comptesMapCache: { at: number; magasinId: string | null; map: Map<string, Compte> } | null = null;
+if problems:
+    print("❌ package.json invalide :")
+    for p in problems:
+        print("   -", p)
+    sys.exit(1)
 
-// 🔧 Point 12 : scopé par magasin actif. magasin_id = null = compte
-// "partagé" (compat. avec les données existantes sans magasin_id).
-const fetchComptesMap = async (magasinId: string | null = null): Promise<Map<string, Compte>> => {
-  // Petit cache mémoire (5s) pour éviter de re-fetcher tous les comptes à
-  // chaque ligne/transaction affichée dans la même fenêtre de rendu.
-  if (_comptesMapCache && _comptesMapCache.magasinId === magasinId && Date.now() - _comptesMapCache.at < 5000) {
-    return _comptesMapCache.map;
-  }
-  let query = supabase.from('comptes').select('*');
-  if (magasinId) {
-    query = query.or(`magasin_id.eq.${magasinId},magasin_id.is.null`);
-  }
-  const { data, error } = await query;
-  if (error) {
-    console.error('[fetchComptesMap] Erreur Supabase:', error);
-    throw error;
-  }
-  const map = new Map<string, Compte>((data || []).map((c: Compte) => [c.id, c]));
-  _comptesMapCache = { at: Date.now(), magasinId, map };
-  return map;
-};""",
-            "fetchComptesMap",
-        ),
-        (
-            """export const useComptes = (actif?: boolean) => {
-  const { getData } = useDataLoader();
-  return useQuery<Compte[], Error>({
-    queryKey: ['comptes', actif],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('comptes')
-          .select('*')
-          .order('numero');
-
-        if (actif !== undefined) {
-          query = query.eq('actif', actif);
-        }
-
-        const { data, error } = await query;""",
-            """export const useComptes = (actif?: boolean) => {
-  const { getData } = useDataLoader();
-  const { magasinActifId } = useMagasinActif();
-  return useQuery<Compte[], Error>({
-    // 🔧 Point 12 : magasinActifId dans la clé -> refetch au changement de magasin.
-    queryKey: ['comptes', actif, magasinActifId],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('comptes')
-          .select('*')
-          .order('numero');
-
-        if (actif !== undefined) {
-          query = query.eq('actif', actif);
-        }
-        // 🔧 Point 12 : scope par magasin actif (magasin_id null = partagé).
-        if (magasinActifId) {
-          query = query.or(`magasin_id.eq.${magasinActifId},magasin_id.is.null`);
-        }
-
-        const { data, error } = await query;""",
-            "useComptes",
-        ),
-        (
-            """  const { getData } = useDataLoader();
-  return useQuery<TransactionComptable[], Error>({
-    queryKey: ['transactions_comptables', filters],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('transactions_comptables')
-          .select('*')
-          .order('date_transaction', { ascending: false });
-
-        if (filters?.date_debut) query = query.gte('date_transaction', filters.date_debut);
-        if (filters?.date_fin) query = query.lte('date_transaction', finDeJournee(filters.date_fin));
-        if (filters?.type) query = query.eq('type', filters.type);
-        if (filters?.compte_id) {
-          query = query.or(`compte_debit_id.eq.${filters.compte_id},compte_credit_id.eq.${filters.compte_id}`);
-        }
-        if (filters?.magasin_id) query = query.eq('magasin_id', filters.magasin_id);
-
-        const [{ data, error }, comptesMap] = await Promise.all([query, fetchComptesMap()]);""",
-            """  const { getData } = useDataLoader();
-  const { magasinActifId } = useMagasinActif();
-  // 🔧 Point 12 : si l'appelant ne précise pas magasin_id explicitement,
-  // on scope par défaut sur le magasin actif plutôt que de tout charger.
-  const magasinId = filters?.magasin_id ?? magasinActifId;
-  return useQuery<TransactionComptable[], Error>({
-    queryKey: ['transactions_comptables', filters, magasinId],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('transactions_comptables')
-          .select('*')
-          .order('date_transaction', { ascending: false });
-
-        if (filters?.date_debut) query = query.gte('date_transaction', filters.date_debut);
-        if (filters?.date_fin) query = query.lte('date_transaction', finDeJournee(filters.date_fin));
-        if (filters?.type) query = query.eq('type', filters.type);
-        if (filters?.compte_id) {
-          query = query.or(`compte_debit_id.eq.${filters.compte_id},compte_credit_id.eq.${filters.compte_id}`);
-        }
-        if (magasinId) query = query.or(`magasin_id.eq.${magasinId},magasin_id.is.null`);
-
-        const [{ data, error }, comptesMap] = await Promise.all([query, fetchComptesMap(magasinId ?? null)]);""",
-            "useTransactions",
-        ),
-        (
-            """export const useSaisies = (filters?: { type?: string; statut?: string }) => {
-  const { getData } = useDataLoader();
-  return useQuery<SaisieComptable[], Error>({
-    queryKey: ['saisies_comptables', filters],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('saisies_comptables')
-          .select('*')
-          .order('date_operation', { ascending: false });
-
-        if (filters?.type) query = query.eq('type', filters.type);
-        if (filters?.statut) query = query.eq('statut_paiement', filters.statut);
-
-        const { data, error } = await query;""",
-            """export const useSaisies = (filters?: { type?: string; statut?: string }) => {
-  const { getData } = useDataLoader();
-  const { magasinActifId } = useMagasinActif();
-  return useQuery<SaisieComptable[], Error>({
-    queryKey: ['saisies_comptables', filters, magasinActifId],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('saisies_comptables')
-          .select('*')
-          .order('date_operation', { ascending: false });
-
-        if (filters?.type) query = query.eq('type', filters.type);
-        if (filters?.statut) query = query.eq('statut_paiement', filters.statut);
-        // 🔧 Point 12 : scope par magasin actif (magasin_id null = partagé).
-        if (magasinActifId) {
-          query = query.or(`magasin_id.eq.${magasinActifId},magasin_id.is.null`);
-        }
-
-        const { data, error } = await query;""",
-            "useSaisies",
-        ),
-    ],
-    "useComptabilite.ts",
-)
-
-# ============================================================
-# useFactures.ts
-# ============================================================
-patch(
-    "src/hooks/useFactures.ts",
-    [
-        (
-            "import { annulerTransactionsParReference } from './useAnnulationTransaction';",
-            "import { annulerTransactionsParReference } from './useAnnulationTransaction';\n"
-            "import { useMagasinActif } from '../contexts/MagasinActifContext';",
-            "import useMagasinActif",
-        ),
-        (
-            """export const useFactures = (filters?: { type?: string; statut?: string }) => {
-  const { getData } = useDataLoader();
-  return useQuery<Facture[], Error>({
-    queryKey: ['factures', filters],
-    queryFn: async () => {
-      try {
-        let query = supabase.from('factures').select('*').order('date_emission', { ascending: false });
-        if (filters?.type) query = query.eq('type', filters.type);
-        if (filters?.statut) query = query.eq('statut', filters.statut);
-        const { data, error } = await query;""",
-            """export const useFactures = (filters?: { type?: string; statut?: string }) => {
-  const { getData } = useDataLoader();
-  const { magasinActifId } = useMagasinActif();
-  return useQuery<Facture[], Error>({
-    queryKey: ['factures', filters, magasinActifId],
-    queryFn: async () => {
-      try {
-        let query = supabase.from('factures').select('*').order('date_emission', { ascending: false });
-        if (filters?.type) query = query.eq('type', filters.type);
-        if (filters?.statut) query = query.eq('statut', filters.statut);
-        // 🔧 Point 12 : scope par magasin actif (magasin_id null = partagé).
-        if (magasinActifId) {
-          query = query.or(`magasin_id.eq.${magasinActifId},magasin_id.is.null`);
-        }
-        const { data, error } = await query;""",
-            "useFactures",
-        ),
-        (
-            """export const useFacturesARegler = () => {
-  return useQuery<Facture[], Error>({
-    queryKey: ['factures_a_regler'],
-    queryFn: async () => {
-      const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 26);
-      const dateStr = nextMonth.toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('factures')
-        .select('*')
-        .eq('type', 'recue')
-        .in('statut', ['envoyee', 'en_retard'])
-        .lte('date_echeance', dateStr)
-        .order('date_echeance', { ascending: true });
-      if (error) throw error;""",
-            """export const useFacturesARegler = () => {
-  const { magasinActifId } = useMagasinActif();
-  return useQuery<Facture[], Error>({
-    queryKey: ['factures_a_regler', magasinActifId],
-    queryFn: async () => {
-      const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 26);
-      const dateStr = nextMonth.toISOString().split('T')[0];
-      let query = supabase
-        .from('factures')
-        .select('*')
-        .eq('type', 'recue')
-        .in('statut', ['envoyee', 'en_retard'])
-        .lte('date_echeance', dateStr)
-        .order('date_echeance', { ascending: true });
-      // 🔧 Point 12 : scope par magasin actif (magasin_id null = partagé).
-      if (magasinActifId) {
-        query = query.or(`magasin_id.eq.${magasinActifId},magasin_id.is.null`);
-      }
-      const { data, error } = await query;
-      if (error) throw error;""",
-            "useFacturesARegler",
-        ),
-    ],
-    "useFactures.ts",
-)
-
-# ============================================================
-# useChargesUsuelles.ts
-# ============================================================
-patch(
-    "src/hooks/useChargesUsuelles.ts",
-    [
-        (
-            "import { useDataLoader } from '../contexts/DataLoaderContext';",
-            "import { useDataLoader } from '../contexts/DataLoaderContext';\n"
-            "import { useMagasinActif } from '../contexts/MagasinActifContext';",
-            "import useMagasinActif",
-        ),
-        (
-            """export const useChargesUsuelles = () => {
-  const { getData } = useDataLoader();
-  return useQuery<ChargeUsuelle[], Error>({
-    queryKey: ['charges_usuelles'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('charges_usuelles')
-          .select('*')
-          .eq('actif', true)
-          .order('nom');
-        if (error) throw error;""",
-            """export const useChargesUsuelles = () => {
-  const { getData } = useDataLoader();
-  const { magasinActifId } = useMagasinActif();
-  return useQuery<ChargeUsuelle[], Error>({
-    queryKey: ['charges_usuelles', magasinActifId],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('charges_usuelles')
-          .select('*')
-          .eq('actif', true)
-          .order('nom');
-        // 🔧 Point 12 : scope par magasin actif (magasin_id null = partagé).
-        if (magasinActifId) {
-          query = query.or(`magasin_id.eq.${magasinActifId},magasin_id.is.null`);
-        }
-        const { data, error } = await query;
-        if (error) throw error;""",
-            "useChargesUsuelles",
-        ),
-    ],
-    "useChargesUsuelles.ts",
-)
-
-# ============================================================
-# useSessions.ts
-# ============================================================
-patch(
-    "src/hooks/useSessions.ts",
-    [
-        (
-            "import { useOfflineMutation } from './useOfflineMutation';",
-            "import { useOfflineMutation } from './useOfflineMutation';\n"
-            "import { useMagasinActif } from '../contexts/MagasinActifContext';",
-            "import useMagasinActif",
-        ),
-        (
-            """export const useSessions = () => {
-  const { getData } = useDataLoader();
-  return useQuery<SessionCaisse[], Error>({
-    queryKey: ['sessions_caisse'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sessions_caisse')
-          .select('*, user:users(id, nom, prenom, email)')
-          .order('date_ouverture', { ascending: false });
-        if (error) throw error;""",
-            """export const useSessions = () => {
-  const { getData } = useDataLoader();
-  const { magasinActifId } = useMagasinActif();
-  return useQuery<SessionCaisse[], Error>({
-    queryKey: ['sessions_caisse', magasinActifId],
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('sessions_caisse')
-          .select('*, user:users(id, nom, prenom, email)')
-          .order('date_ouverture', { ascending: false });
-        // 🔧 Point 12 : scope par magasin actif (magasin_id null = partagé).
-        if (magasinActifId) {
-          query = query.or(`magasin_id.eq.${magasinActifId},magasin_id.is.null`);
-        }
-        const { data, error } = await query;
-        if (error) throw error;""",
-            "useSessions",
-        ),
-    ],
-    "useSessions.ts",
-)
-
-print("✅ Tous les patchs appliqués.")
+print("✅ package.json valide (JSON correct, overrides/deps/vite-plugin-pwa absents)")
+print(f"   {len(data['dependencies'])} dependencies, "
+      f"{len(data.get('devDependencies', {}))} devDependencies")
 PYEOF
 
 echo ""
-echo "============================================================"
-echo "Terminé. Fichiers modifiés (backups en .bak à côté) :"
-echo "  - src/hooks/useComptabilite.ts   (fetchComptesMap, useComptes,"
-echo "                                     useTransactions, useSaisies)"
-echo "  - src/hooks/useFactures.ts       (useFactures, useFacturesARegler)"
-echo "  - src/hooks/useChargesUsuelles.ts (useChargesUsuelles)"
-echo "  - src/hooks/useSessions.ts       (useSessions)"
+echo "→ Fait. Prochaine étape :"
+echo "   rm -rf node_modules package-lock.json"
+echo "   npm install"
+echo "   npm run build"
 echo ""
-echo "PAS traité (à faire à part) :"
-echo "  - useVentes() : table 'ventes' sans magasin_id direct, filtre"
-echo "    à faire via jointure sur session_id -> sessions_caisse.magasin_id."
-echo ""
-echo "Vérifie avec :"
-echo "  git diff src/hooks/"
-echo "  npm run build   (ou ton script de type-check habituel)"
-echo "============================================================"
+echo "   (package.json original conservé dans package.json.bak)"
