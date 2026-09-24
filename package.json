@@ -73,9 +73,5 @@
   },
   "engines": {
     "node": "20.x"
-  },
-  "overrides": {
-    "ajv": "$ajv",
-    "ajv-keywords": "$ajv-keywords"
   }
 }
