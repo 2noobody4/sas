@@ -30,10 +30,7 @@ import { NavigationLoader } from './components/NavigationLoader';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 import { LoadingScreen } from './components/LoadingScreen';
 import { Sidebar } from './components/Sidebar';
-import RoleSwitcher from './components/RoleSwitcher';
-import { DebugButton } from './components/DebugButton';
 import { FloatingNav } from './components/FloatingNav';
-import DebugPage from './pages/DebugPage';
 import { useAuth } from './hooks/useAuth';
 import { useUserModules } from './hooks/useUserModules';
 import { useSessionGuard } from './hooks/useSessionGuard';
@@ -201,8 +198,6 @@ function AppContent() {
             </p>
           </div>
         </div>
-        <RoleSwitcher />
-        <DebugButton />
         <FloatingNav />
       </>
     );
@@ -277,7 +272,6 @@ function AppContent() {
               />
             ))}
 
-            <Route path="/debug" exact component={DebugPage} />
 
             <Route path="*">
               <div className="p-6 text-center text-[var(--color-textSecondary)]">
@@ -294,8 +288,6 @@ function AppContent() {
 
       <NotificationToast toasts={notifications.toasts} onDismiss={notifications.dismissToast} />
       <Toaster position="top-center" />
-      <RoleSwitcher />
-      <DebugButton />
       <FloatingNav />
     </>
   );

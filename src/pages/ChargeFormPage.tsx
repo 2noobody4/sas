@@ -172,7 +172,7 @@ export const ChargeFormPage: React.FC = () => {
       }
 
       success(isEdit ? 'Charge mise à jour ✅' : 'Charge enregistrée ✅');
-      history.push('/gestion/comptabilite/charges');
+      history.replace('/gestion/comptabilite/charges');
     } catch (err: any) {
       toastError(err.message);
     } finally {
@@ -183,7 +183,7 @@ export const ChargeFormPage: React.FC = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => history.push('/gestion/comptabilite/charges')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
+        <button onClick={() => history.replace('/gestion/comptabilite/charges')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-2xl font-bold text-[var(--color-textPrimary)]">
@@ -344,7 +344,7 @@ export const ChargeFormPage: React.FC = () => {
           <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-borderColor)]">
             <button
               type="button"
-              onClick={() => history.push('/gestion/comptabilite/charges')}
+              onClick={() => history.replace('/gestion/comptabilite/charges')}
               className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
             >
               Annuler

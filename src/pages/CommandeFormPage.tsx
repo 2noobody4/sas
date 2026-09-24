@@ -121,7 +121,7 @@ export const CommandeFormPage: React.FC = () => {
         notes: notes || undefined,
       });
       success('Commande créée avec succès ✅');
-      history.push('/gestion/clients/commandes');
+      history.replace('/gestion/clients/commandes');
     } catch (err: any) {
       toastError(err.message);
     } finally {
@@ -136,7 +136,7 @@ export const CommandeFormPage: React.FC = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => history.push('/gestion/clients/commandes')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
+        <button onClick={() => history.replace('/gestion/clients/commandes')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-2xl font-bold text-[var(--color-textPrimary)]">📝 Nouvelle commande</h1>

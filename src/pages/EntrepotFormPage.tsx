@@ -66,7 +66,7 @@ export const EntrepotFormPage: React.FC = () => {
         await createMutation.mutateAsync(form);
         success('Entrepôt créé ✅');
       }
-      history.push('/gestion/entrepots');
+      history.replace('/gestion/entrepots');
     } catch (err: any) {
       toastError(err.message);
     } finally {
@@ -79,7 +79,7 @@ export const EntrepotFormPage: React.FC = () => {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => history.push('/gestion/entrepots')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
+        <button onClick={() => history.replace('/gestion/entrepots')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-2xl font-bold text-[var(--color-textPrimary)]">
@@ -232,7 +232,7 @@ export const EntrepotFormPage: React.FC = () => {
           <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-borderColor)]">
             <button
               type="button"
-              onClick={() => history.push('/gestion/entrepots')}
+              onClick={() => history.replace('/gestion/entrepots')}
               className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
             >
               Annuler

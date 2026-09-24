@@ -65,7 +65,7 @@ export const ClientFormPage: React.FC = () => {
         await createMutation.mutateAsync(form);
         success('Client créé ✅');
       }
-      history.push('/gestion/clients/liste');
+      history.replace('/gestion/clients/liste');
     } catch (err: any) {
       toastError(err.message);
     } finally {
@@ -78,7 +78,7 @@ export const ClientFormPage: React.FC = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => history.push('/gestion/clients/liste')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
+        <button onClick={() => history.replace('/gestion/clients/liste')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-2xl font-bold text-[var(--color-textPrimary)]">
@@ -219,7 +219,7 @@ export const ClientFormPage: React.FC = () => {
           <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-borderColor)]">
             <button
               type="button"
-              onClick={() => history.push('/gestion/clients/liste')}
+              onClick={() => history.replace('/gestion/clients/liste')}
               className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
             >
               Annuler

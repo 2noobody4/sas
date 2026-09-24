@@ -122,7 +122,7 @@ export const CommandeClientFormPage: React.FC = () => {
         mode_paiement: modePaiement || undefined,
       });
       success('Commande créée avec succès ✅');
-      history.push('/gestion/clients/commandes');
+      history.replace('/gestion/clients/commandes');
     } catch (err: any) {
       toastError(err.message);
     } finally {
@@ -134,7 +134,7 @@ export const CommandeClientFormPage: React.FC = () => {
     if (lignes.length > 0 || selectedClient) {
       setShowCancelModal(true);
     } else {
-      history.push('/gestion/clients/commandes');
+      history.replace('/gestion/clients/commandes');
     }
   };
 
@@ -151,7 +151,7 @@ export const CommandeClientFormPage: React.FC = () => {
         type="button"
         onClick={() => {
           setShowCancelModal(false);
-          history.push('/gestion/clients/commandes');
+          history.replace('/gestion/clients/commandes');
         }}
         className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition flex items-center gap-2"
       >

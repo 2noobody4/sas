@@ -178,7 +178,7 @@ export const FactureFormPage: React.FC = () => {
         await createMutation.mutateAsync(data);
         success('Facture créée ✅');
       }
-      history.push('/gestion/comptabilite/factures');
+      history.replace('/gestion/comptabilite/factures');
     } catch (err: any) {
       toastError(err.message);
     } finally {
@@ -191,7 +191,7 @@ export const FactureFormPage: React.FC = () => {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => history.push('/gestion/comptabilite/factures')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
+        <button onClick={() => history.replace('/gestion/comptabilite/factures')} className="p-2 rounded hover:bg-[var(--color-secondary)]">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-2xl font-bold text-[var(--color-textPrimary)]">{title}</h1>
@@ -385,7 +385,7 @@ export const FactureFormPage: React.FC = () => {
           <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-borderColor)]">
             <button
               type="button"
-              onClick={() => history.push('/gestion/comptabilite/factures')}
+              onClick={() => history.replace('/gestion/comptabilite/factures')}
               className="px-4 py-2 rounded-xl border border-[var(--color-borderColor)] text-[var(--color-textSecondary)]"
             >
               Annuler

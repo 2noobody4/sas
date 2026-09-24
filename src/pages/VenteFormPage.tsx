@@ -177,7 +177,7 @@ export const VenteFormPage: React.FC = () => {
         paiements,
       };
       await createVente.mutateAsync(data);
-      history.push('/gestion/caisse/ventes');
+      history.replace('/gestion/caisse/ventes');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'enregistrement');
     } finally {
@@ -205,7 +205,7 @@ export const VenteFormPage: React.FC = () => {
     if (lignes.length > 0 || paiements.length > 0 || clientId) {
       setShowCancelModal(true);
     } else {
-      history.push('/gestion/caisse/ventes');
+      history.replace('/gestion/caisse/ventes');
     }
   };
 
@@ -234,7 +234,7 @@ export const VenteFormPage: React.FC = () => {
         type="button"
         onClick={() => {
           setShowCancelModal(false);
-          history.push('/gestion/caisse/ventes');
+          history.replace('/gestion/caisse/ventes');
         }}
         className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition flex items-center gap-2"
       >
