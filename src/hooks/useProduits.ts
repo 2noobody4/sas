@@ -102,6 +102,7 @@ export const useCreateProduit = () => {
       mutationFn,
       onSuccess: () => {
         queryClient.invalidateQueries('produits');
+        queryClient.invalidateQueries('produit');
         success('Produit créé ✅');
       },
       onError: (err: any) => {
@@ -168,6 +169,7 @@ export const useUpdateProduit = () => {
       mutationFn,
       onSuccess: () => {
         queryClient.invalidateQueries('produits');
+        queryClient.invalidateQueries('produit');
         success('Produit mis à jour ✅');
       },
       onError: (err: any) => {
@@ -207,6 +209,7 @@ export const useRetirerProduit = () => {
       mutationFn,
       onSuccess: () => {
         queryClient.invalidateQueries('produits');
+        queryClient.invalidateQueries('produit');
         success('Produit retiré ✅');
       },
       onError: (err: any) => {
@@ -233,6 +236,7 @@ export const useRestaurerProduit = () => {
       mutationFn,
       onSuccess: () => {
         queryClient.invalidateQueries('produits');
+        queryClient.invalidateQueries('produit');
         success('Produit restauré ✅');
       },
       onError: (err: any) => {
@@ -256,6 +260,14 @@ export const useSupprimerProduit = () => {
         if (path) await supabase.storage.from('logos').remove([path]);
       } catch {}
     }
+    // ⚠️ FIX : la table "tarifications" référence produits.id via
+    // tarifications_produit_id_fkey. Sans ça, Postgres refuse la
+    // suppression du produit avec :
+    // "update or delete on table "produits" violates foreign key
+    //  constraint "tarifications_produit_id_fkey" on table "tarifications""
+    const { error: tarifError } = await supabase.from('tarifications').delete().eq('produit_id', produit.id);
+    if (tarifError) throw tarifError;
+
     const { error } = await supabase.from('produits').delete().eq('id', produit.id);
     if (error) throw error;
     return produit.id;
@@ -266,6 +278,12 @@ export const useSupprimerProduit = () => {
       mutationFn,
       onSuccess: () => {
         queryClient.invalidateQueries('produits');
+        queryClient.invalidateQueries('produit');
+        // Les tarifications du produit ont été supprimées en base (voir
+        // mutationFn ci-dessus) : on invalide aussi leur cache React Query
+        // pour que les pages Négociation/Promotions ne gardent pas les
+        // anciennes lignes affichées.
+        queryClient.invalidateQueries('tarifications');
         success('Produit supprimé définitivement ✅');
       },
       onError: (err: any) => {

@@ -100,24 +100,45 @@ export const StocksPage: React.FC = () => {
 
   const handleRetirer = async (produit: Produit) => {
     if (window.confirm(`Voulez-vous retirer "${produit.nom}" de la boutique ?`)) {
-      await retirerMutation.mutateAsync(produit.id);
-      refetch();
+      try {
+        await retirerMutation.mutateAsync(produit.id);
+        refetch();
+      } catch {
+        // Erreur déjà affichée via le toast (onError du hook) — on évite
+        // ici une rejection de promesse non interceptée (crash React).
+      }
     }
   };
 
   const handleRestaurer = async (produit: Produit) => {
     if (window.confirm(`Voulez-vous restaurer "${produit.nom}" dans la boutique ?`)) {
-      await restaurerMutation.mutateAsync(produit.id);
-      refetch();
+      try {
+        await restaurerMutation.mutateAsync(produit.id);
+        refetch();
+      } catch {
+        // Erreur déjà affichée via le toast (onError du hook) — on évite
+        // ici une rejection de promesse non interceptée (crash React).
+      }
     }
   };
 
   const handleSupprimerDefinitif = async (produit: Produit) => {
     if (window.confirm(
-      `⚠️ Supprimer définitivement "${produit.nom}" ?\n\nCette action est irréversible et supprimera également les images associées.`
+      `⚠️ Supprimer définitivement "${produit.nom}" ?\n\nCette action est irréversible et supprimera également :\n- les images associées\n- l'historique de tarification / négociation (tarifications)`
     )) {
-      await supprimerMutation.mutateAsync(produit);
-      refetch();
+      try {
+        await supprimerMutation.mutateAsync(produit);
+        refetch();
+      } catch {
+        // Erreur déjà affichée via le toast (onError du hook) — on évite
+        // ici une rejection de promesse non interceptée (crash React).
+        // Les tarifications liées sont supprimées avant le produit
+        // (useSupprimerProduit) pour satisfaire tarifications_produit_id_fkey.
+        // Si l'erreur persiste malgré ça, une autre table référence
+        // probablement produits.id (ex: mouvements_stock) : utiliser
+        // "Retirer" (désactivation) plutôt que "Supprimer définitivement"
+        // dans ce cas.
+      }
     }
   };
 

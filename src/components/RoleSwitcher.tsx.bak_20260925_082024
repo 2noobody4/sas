@@ -6,6 +6,11 @@ import { ChevronDown, ChevronUp, Users } from 'lucide-react';
 import { MotionBox } from './MotionBox';
 import { useToast } from '../hooks/useToast';
 
+const AVAILABLE_ROLES = [
+  'admin', 'gestionnaire', 'comptable', 'cashier',
+  'magasinier', 'employe', 'client', 'fournisseur',
+];
+
 const RoleSwitcher = memo(function RoleSwitcher() {
   const { user, updateUserRole, refreshUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -21,11 +26,7 @@ const RoleSwitcher = memo(function RoleSwitcher() {
     return () => setMounted(false);
   }, []);
 
-  const {
-    data: roles = [],
-    isLoading: rolesLoading,
-    error: rolesError,
-  } = useQuery<string[]>(
+  const { data: roles = [] } = useQuery<string[]>(
     ['available_roles'],
     async () => {
       const { data, error } = await supabase.from('roles').select('nom').order('nom');
@@ -37,17 +38,6 @@ const RoleSwitcher = memo(function RoleSwitcher() {
       enabled: isDev && !!user,
     }
   );
-
-  // ✅ FIX : si la requête échoue (RLS, table vide...), on le voit vraiment
-  // au lieu de basculer silencieusement sur une liste de rôles inventée.
-  useEffect(() => {
-    if (rolesError) {
-      toastError(
-        'Impossible de charger les rôles depuis la base : ' +
-          ((rolesError as any)?.message || 'erreur inconnue')
-      );
-    }
-  }, [rolesError, toastError]);
 
   if (!isDev || !user) return null;
 
@@ -71,7 +61,7 @@ const RoleSwitcher = memo(function RoleSwitcher() {
     }
   };
 
-  const allRoles = roles;
+  const allRoles = roles.length > 0 ? roles : AVAILABLE_ROLES;
 
   return (
     <MotionBox
@@ -99,16 +89,6 @@ const RoleSwitcher = memo(function RoleSwitcher() {
           animation={{ animationInitiale: 'fadeIn' }}
         >
           <div className="max-h-48 overflow-y-auto">
-            {rolesLoading && (
-              <div className="px-3 py-2 text-xs text-[var(--color-textSecondary)]">
-                Chargement des rôles...
-              </div>
-            )}
-            {!rolesLoading && allRoles.length === 0 && (
-              <div className="px-3 py-2 text-xs text-[var(--color-textSecondary)]">
-                Aucun rôle trouvé en base.
-              </div>
-            )}
             {allRoles.map((role: string) => {
               const isActive = role === currentRole;
               return (

@@ -9,7 +9,6 @@ import { MODULES_REGISTRY, getNavItems, getManagementModules } from '../registre
 import { ModuleDefinition } from '../registres/modulesTypes';
 import { RouteConfig } from '../types/navigation';
 import { ComponentType } from 'react';
-import { matchPath } from 'react-router-dom';
 
 // ============================================================
 // RESOLUTION DE COMPOSANT
@@ -185,47 +184,4 @@ export function getRoutesByRole(role: string = 'client'): RouteConfig[] {
     if (!r.roles || r.roles.length === 0) return true;
     return r.roles.includes(role);
   });
-}
-
-// ============================================================
-// LIBELLÉ LISIBLE POUR UN CHEMIN (historique de navigation, etc.)
-// ============================================================
-
-/**
- * Renvoie l'intitulé (français, grand public) correspondant à un chemin,
- * en le comparant aux routes déclarées (support des routes dynamiques du
- * type '/services/:id'). Si aucune route ne correspond, on retombe sur une
- * version "humanisée" du chemin plutôt que d'afficher le chemin brut ou un
- * identifiant technique.
- */
-export function getRouteLabelForPath(pathname: string): string {
-  for (const route of ALL_ROUTES) {
-    const match = matchPath(pathname, { path: route.path, exact: true });
-    if (match && route.label) return route.label;
-  }
-  return humanizePath(pathname);
-}
-
-function isIdLikeSegment(segment: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const numericRegex = /^\d+$/;
-  const hashLikeRegex = /^[a-z0-9]{16,}$/i;
-  return (
-    uuidRegex.test(segment) ||
-    numericRegex.test(segment) ||
-    (hashLikeRegex.test(segment) && /\d/.test(segment) && /[a-z]/i.test(segment))
-  );
-}
-
-/** Transforme un chemin sans route connue en texte lisible (repli). */
-function humanizePath(pathname: string): string {
-  const segments = pathname.split('/').filter(Boolean);
-  if (segments.length === 0) return 'Accueil';
-
-  const meaningful = segments.filter((s) => !isIdLikeSegment(s));
-  const last = meaningful[meaningful.length - 1] || segments[segments.length - 1];
-
-  return last
-    .replace(/[-_]+/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }

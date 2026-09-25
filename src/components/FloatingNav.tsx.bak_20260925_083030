@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { ArrowLeft, Home, Clock, X, Trash2 } from 'lucide-react';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
-import { getRouteLabelForPath } from '../utils/routesGenerator';
 
 export const FloatingNav: React.FC = () => {
   const history = useHistory();
@@ -101,24 +100,13 @@ export const FloatingNav: React.FC = () => {
                     background: path === location.pathname ? '#dbeafe' : 'transparent',
                     cursor: 'pointer',
                     textAlign: 'left',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: '#1f2937',
+                    wordBreak: 'break-all',
                   }}
                 >
-                  <span style={{ fontSize: 13, color: '#1f2937' }}>
-                    {getRouteLabelForPath(path)}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontFamily: 'monospace',
-                      color: '#9ca3af',
-                      wordBreak: 'break-all',
-                    }}
-                  >
-                    {path}
-                  </span>
+                  {path}
                 </button>
               ))
             )}

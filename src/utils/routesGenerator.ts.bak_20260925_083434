@@ -201,7 +201,7 @@ export function getRoutesByRole(role: string = 'client'): RouteConfig[] {
 export function getRouteLabelForPath(pathname: string): string {
   for (const route of ALL_ROUTES) {
     const match = matchPath(pathname, { path: route.path, exact: true });
-    if (match && route.label) return route.label;
+    if (match) return route.label;
   }
   return humanizePath(pathname);
 }

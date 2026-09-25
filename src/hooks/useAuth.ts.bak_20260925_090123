@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { logAction } from './useHistorique';
-import { normalizeRoleName } from '../utils/roleNames';
 
 export interface User {
   id: string;
@@ -96,10 +95,7 @@ export const useAuth = () => {
         } else if (roleData) {
           role = {
             id: roleData.id,
-            // ✅ FIX : on normalise le nom de rôle (ex: 'Administrateur' -> 'admin')
-            // pour qu'il corresponde aux clés utilisées partout dans les
-            // vérifications de permissions (RouteGuard, MODULES_REGISTRY...).
-            nom: normalizeRoleName(roleData.nom),
+            nom: roleData.nom,
             permissions: roleData.permissions || [],
           };
         }

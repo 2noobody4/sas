@@ -2,7 +2,6 @@ import { useQuery } from 'react-query';
 import { supabase } from '../lib/supabaseClient';
 import { Utilisateur as User } from '../types/modules';
 import { useDataLoader } from '../contexts/DataLoaderContext';
-import { normalizeRoleName } from '../utils/roleNames';
 
 export const useUsersByRole = (roles?: string[]) => {
   const { getData } = useDataLoader();
@@ -21,7 +20,7 @@ export const useUsersByRole = (roles?: string[]) => {
         if (error) throw error;
 
         if (roles && roles.length > 0) {
-          return data.filter((u: any) => roles.includes(normalizeRoleName(u.role?.nom)));
+          return data.filter((u: any) => roles.includes(u.role?.nom));
         }
         return data as User[];
       } catch {
