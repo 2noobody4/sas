@@ -7,7 +7,6 @@ import { MAIN_MODULES as _MAIN_MODULES } from './mainModules';
 import { OTHER_MODULES as _OTHER_MODULES } from './otherModules';
 import { MANAGEMENT_MODULES as _MANAGEMENT_MODULES } from './managementModules';
 import { CLIENT_SERVICES_MODULES as _CLIENT_SERVICES_MODULES } from './managementServices';
-import { CLIENT_PRODUITS_MODULES as _CLIENT_PRODUITS_MODULES } from './managementProduits';
 
 // ============================================================
 // HELPERS
@@ -21,7 +20,6 @@ export const MODULES_REGISTRY: ModuleDefinition[] = [
   ..._OTHER_MODULES,
   ..._MANAGEMENT_MODULES,
   ..._CLIENT_SERVICES_MODULES,
-  ..._CLIENT_PRODUITS_MODULES,
 ];
 
 // ============================================================

@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { MotionBox } from '../components/MotionBox';
-import { ProductCard } from '../components/ProductCard';
 import { useProduits } from '../hooks/useProduits';
 import { usePanier } from '../hooks/useBoutique';
 import { useConfig } from '../contexts/ConfigContext';
 import { useToast } from '../hooks/useToast';
 import { useFormat } from '../hooks/useFormat';
-import { Search, ShoppingCart, LayoutGrid, List, ChevronLeft, ChevronRight, Send } from 'lucide-react';
-import { Link, useHistory } from 'react-router-dom';
+import { Search, ShoppingCart, LayoutGrid, List, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { CachedImage } from '../components/CachedImage';
 
 export const BoutiquePage: React.FC = () => {
@@ -16,7 +15,6 @@ export const BoutiquePage: React.FC = () => {
   const config = useConfig();
   const { success, info } = useToast();
   const { formatCurrency } = useFormat();
-  const history = useHistory();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categorieFiltre, setCategorieFiltre] = useState('');
@@ -51,13 +49,13 @@ export const BoutiquePage: React.FC = () => {
 
   const totalItems = panier.items.reduce((acc: number, item: any) => acc + item.quantite, 0);
 
-  const handleCommander = (produit: any) => {
+  const handleAjouter = (produit: any) => {
     if (produit.quantite <= 0) {
       info('⚠️ Ce produit est en rupture de stock');
       return;
     }
     ajouter(produit.id, produit.prix_vente);
-    success(`${produit.nom} ajouté à votre commande ✅`);
+    success(`${produit.nom} ajouté au panier ✅`);
   };
 
   if (isLoading) return <div className="p-6 text-center text-[var(--color-textSecondary)]">Chargement...</div>;
@@ -131,20 +129,43 @@ export const BoutiquePage: React.FC = () => {
       ) : displayMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {paginatedProduits.map((produit: any) => (
-            <ProductCard key={produit.id} produit={produit} onCommander={handleCommander} />
+            <MotionBox key={produit.id} type="card" variant="default" className="overflow-hidden hover:shadow-xl transition-all duration-300">
+              <div className="aspect-square bg-[var(--color-secondary)] flex items-center justify-center">
+                {produit.image_url ? (
+                  <CachedImage src={produit.image_url} alt={produit.nom} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-6xl opacity-20">📦</div>
+                )}
+              </div>
+              <div className="p-4">
+                <h3 className="font-semibold text-[var(--color-textPrimary)]">{produit.nom}</h3>
+                {produit.categorie?.nom && (
+                  <p className="text-xs text-[var(--color-textSecondary)]">{produit.categorie.nom}</p>
+                )}
+                <p className="text-lg font-bold text-[var(--color-primary)] mt-2">
+                  {formatCurrency(produit.prix_vente)}
+                </p>
+                <p className="text-sm text-[var(--color-textSecondary)]">
+                  {produit.quantite > 0 ? `Stock : ${produit.quantite}` : '⚠️ Rupture'}
+                </p>
+                <button
+                  onClick={() => handleAjouter(produit)}
+                  disabled={produit.quantite <= 0}
+                  className={`mt-3 w-full px-4 py-2 rounded-xl text-white ${
+                    produit.quantite > 0 ? 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]' : 'bg-[var(--color-borderColor)] cursor-not-allowed opacity-60'
+                  } transition`}
+                >
+                  {produit.quantite > 0 ? 'Ajouter au panier' : 'Rupture'}
+                </button>
+              </div>
+            </MotionBox>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
           {paginatedProduits.map((produit: any) => (
-            <MotionBox
-              key={produit.id}
-              type="card"
-              variant="default"
-              onClick={() => history.push(`/boutique/${produit.id}`)}
-              className="p-4 flex items-center gap-4 cursor-pointer hover:shadow-lg transition"
-            >
-              <div className="w-20 h-20 rounded-xl bg-[var(--color-secondary)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <MotionBox key={produit.id} type="card" variant="default" className="p-4 flex items-center gap-4">
+              <div className="w-20 h-20 rounded-xl bg-[var(--color-secondary)] flex items-center justify-center flex-shrink-0">
                 {produit.image_url ? (
                   <CachedImage src={produit.image_url} alt={produit.nom} className="w-full h-full object-cover rounded-xl" />
                 ) : (
@@ -164,14 +185,13 @@ export const BoutiquePage: React.FC = () => {
                 </p>
               </div>
               <button
-                onClick={(e) => { e.stopPropagation(); handleCommander(produit); }}
+                onClick={() => handleAjouter(produit)}
                 disabled={produit.quantite <= 0}
-                className={`px-4 py-2 rounded-xl text-white flex items-center gap-2 ${
+                className={`px-4 py-2 rounded-xl text-white ${
                   produit.quantite > 0 ? 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]' : 'bg-[var(--color-borderColor)] cursor-not-allowed opacity-60'
                 } transition`}
               >
-                <Send size={16} />
-                {produit.quantite > 0 ? 'Commander' : 'Rupture'}
+                {produit.quantite > 0 ? 'Ajouter' : 'Rupture'}
               </button>
             </MotionBox>
           ))}

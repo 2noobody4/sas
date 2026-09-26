@@ -5,7 +5,7 @@ import { OfflineQueueIndicator } from './OfflineQueueIndicator';
 import { NotificationBell } from './NotificationBell';
 import { SyncStatus } from './SyncStatus';
 import { useAuth } from '../hooks/useAuth';
-import { UserCheck, UserX, LogOut, Menu } from 'lucide-react';
+import { LogOut, LogIn, Menu } from 'lucide-react';
 
 export interface HeaderProps {
   title?: string;
@@ -71,30 +71,19 @@ export const Header: React.FC<HeaderProps> = ({
         {isAuthenticated ? (
           <button
             onClick={handleLogout}
-            className="group flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full bg-[var(--color-success)]/10 border border-[var(--color-success)]/40 hover:bg-[var(--color-danger)]/10 hover:border-[var(--color-danger)]/40 transition"
-            title="Connecté — cliquer pour se déconnecter"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-[var(--color-secondary)] transition text-[var(--color-textSecondary)] hover:text-[var(--color-danger)]"
+            title="Déconnexion"
           >
-            <span className="relative flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-success)] text-white group-hover:bg-[var(--color-danger)] transition">
-              <UserCheck size={13} />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--color-success)] border border-white group-hover:bg-[var(--color-danger)]" />
-            </span>
-            <span className="hidden sm:inline text-sm font-medium text-[var(--color-success)] group-hover:text-[var(--color-danger)] group-hover:hidden">
-              Connecté
-            </span>
-            <span className="hidden sm:group-hover:inline text-sm font-medium text-[var(--color-danger)] items-center gap-1">
-              <LogOut size={14} className="inline -mt-0.5 mr-1" />Déconnexion
-            </span>
+            <LogOut size={18} />
+            <span className="hidden sm:inline text-sm">Déconnexion</span>
           </button>
         ) : (
           <button
             onClick={handleLogin}
-            className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full bg-[var(--color-secondary)] border border-[var(--color-borderColor)] text-[var(--color-textSecondary)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)] transition"
-            title="Non connecté — cliquer pour se connecter"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] transition"
           >
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-borderColor)]/60 text-[var(--color-textSecondary)]">
-              <UserX size={13} />
-            </span>
-            <span className="hidden sm:inline text-sm font-medium">Non connecté</span>
+            <LogIn size={18} />
+            <span className="hidden sm:inline text-sm">Connexion</span>
           </button>
         )}
 

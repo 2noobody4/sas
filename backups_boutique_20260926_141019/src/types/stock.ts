@@ -15,7 +15,6 @@ export interface Produit {
   seuil_alerte: number;
   unite: string;
   image_url?: string;
-  images?: string[];
   reference?: string;
   attributs?: Record<string, string | number>;
   dernier_mouvement_id?: string;

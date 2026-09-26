@@ -3,7 +3,6 @@ import { useHistory, Link } from 'react-router-dom';
 import { MotionBox } from '../components/MotionBox';
 import { useAuth } from '../hooks/useAuth';
 import { useConfig } from '../contexts/ConfigContext';
-import { useToast } from '../hooks/useToast';
 import { Mail, Lock, LogIn, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -12,7 +11,6 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const { success: notifierConnexion } = useToast();
   const config = useConfig();
   const history = useHistory();
   const mountedRef = useRef(true);
@@ -40,7 +38,6 @@ export const LoginPage: React.FC = () => {
 
     setLoading(false);
     if (result.success) {
-      notifierConnexion('Connecté avec succès ✅');
       history.push('/');
     } else {
       setError(result.error || 'Erreur de connexion');
